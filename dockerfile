@@ -7,9 +7,12 @@ RUN mvn dependency:go-offline
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-# Этап 2: Запуск (Используем актуальный и поддерживаемый образ)
-FROM eclipse-temurin:17-jre-slim
+# Этап 2: Запуск
+# Используем проверенный образ Amazon Corretto (на базе Alpine для легкости)
+FROM amazoncorretto:17-alpine
 WORKDIR /app
+
+# Проверка наличия jar файла (поможет при отладке в логах CI/CD)
 COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8086
