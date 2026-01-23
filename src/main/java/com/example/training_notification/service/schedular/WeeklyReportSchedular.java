@@ -1,4 +1,4 @@
-package com.example.training_notification.service.schedular;
+package com.example.training_notification;
 
-public class WeeklyReportSchedular {
+public class WeeklyReportSchedular{
 }
