@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 public class EmailNotificationService implements NotificationSender {
 
     private final JavaMailSender mailSender;
+
     public EmailNotificationService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
@@ -22,8 +23,8 @@ public class EmailNotificationService implements NotificationSender {
     @Override
     public void send(
             NotificationRequest request
-    ){
-        try{
+    ) {
+        try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom("gravitya46@gmail.com");
             message.setTo(request.recipient());
@@ -34,7 +35,7 @@ public class EmailNotificationService implements NotificationSender {
 
             log.info(">>> SUCCESS: Email sent to {}", request.recipient());
             System.out.println(">>> [DEBUG] Notification sent via Email");
-        }catch(Exception e){
+        } catch (Exception e) {
             log.error(">>> ERROR: Failed to send email to {}. Error: {}",
                     request.recipient(), e.getMessage());
         }

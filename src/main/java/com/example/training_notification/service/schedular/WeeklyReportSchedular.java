@@ -3,7 +3,7 @@ package com.example.training_notification.service.schedular;
 import com.example.training_notification.dto.NotificationRequest;
 import com.example.training_notification.dto.NotificationType;
 import com.example.training_notification.dto.UserStatsDTO;
-import com.example.training_notification.service.impl.EmailNotificationService;
+import com.example.training_notification.service.interfaces.NotificationSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,17 +14,17 @@ import java.util.List;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class WeeklyReportSchedular{
+public class WeeklyReportSchedular {
 
-    private final EmailNotificationService emailNotificationService;
+    private final NotificationSender emailNotificationService;
 
     @Scheduled(cron = "0 0 20 * * SUN")
-    public void sendWeeklyReports(){
+    public void sendWeeklyReports() {
         log.info(">>> Starting weekly report distribution process...");
 
         List<UserStatsDTO> reports = collectStatistics();
 
-        for(UserStatsDTO stats: reports){
+        for (UserStatsDTO stats : reports) {
             String emailText = String.format(
                     "Hello, %s!\n\n" +
                             "Your weekly report is ready:\n" +
@@ -49,7 +49,7 @@ public class WeeklyReportSchedular{
             emailNotificationService.send(request);
         }
 
-        log.info(">>> Distribution finished. Reports sent successfully: {}",reports.size());
+        log.info(">>> Distribution finished. Reports sent successfully: {}", reports.size());
     }
 
     private List<UserStatsDTO> collectStatistics() {
@@ -63,7 +63,7 @@ public class WeeklyReportSchedular{
                         250L,
                         1500.0,
                         "Great progress this week",
-                        List.of("Early Bird","Weekly Hero")
+                        List.of("Early Bird", "Weekly Hero")
                 )
         );
     }

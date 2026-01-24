@@ -9,4 +9,5 @@ public record TrainingDTO(
         String data,
         String status,
         List<Object> exercises
-) {}
+) {
+}

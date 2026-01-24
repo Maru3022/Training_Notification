@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.Async;
 public interface NotificationSender {
     @Async("taskExecutor")
     void send(NotificationRequest request);
-        boolean supports(NotificationType type);
+
+    boolean supports(NotificationType type);
 
 }

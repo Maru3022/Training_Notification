@@ -14,7 +14,7 @@ public class NotificationFactory {
     @Autowired
     private List<NotificationSender> senders;
 
-    public NotificationSender getSender(NotificationType type){
+    public NotificationSender getSender(NotificationType type) {
         return senders.stream()
                 .filter(s -> s.supports(type))
                 .findFirst()

@@ -14,4 +14,5 @@ public record UserStatsDTO(
 
         String progressMessage, //Текст прогресса(напр. "Вы выполнили на 20% больше, чем на прошлой неделе")
         List<String> achievemets //Список достижений за неделю
-) {}
+) {
+}

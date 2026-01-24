@@ -4,4 +4,5 @@ public record NotificationRequest(
         String recipient,
         String message,
         NotificationType type
-) {}
+) {
+}
