@@ -6,10 +6,12 @@ import com.example.training_notification.service.interfaces.NotificationSender;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
+@Async
 public class EmailNotificationService implements NotificationSender {
 
     private final JavaMailSender mailSender;
@@ -23,7 +25,7 @@ public class EmailNotificationService implements NotificationSender {
     ){
         try{
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("pdijsj2992@gmail.com");
+            message.setFrom("gravitya46@gmail.com");
             message.setTo(request.recipient());
             message.setSubject("Training Notification System");
             message.setText(request.message());
