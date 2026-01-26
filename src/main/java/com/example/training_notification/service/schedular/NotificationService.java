@@ -36,6 +36,25 @@ public class NotificationService {
         emailNotificationService.send(request);
     }
 
+    public void sendManualNotification(
+            String email,
+            String subject,
+            String content
+    ){
+        NotificationRequest request = new NotificationRequest(
+                email,
+                content,
+                NotificationType.EMAIL
+        );
+
+        emailNotificationService.send(request);
+
+        NotificationLog logEntry = new NotificationLog();
+        logEntry.setMessage(content);
+        logEntry.setSentAt(LocalDateTime.now());
+        notificationLogRepository.save(logEntry);
+    }
+
     @Transactional
     public void processAndSendNotification(
             TrainingDTO training
