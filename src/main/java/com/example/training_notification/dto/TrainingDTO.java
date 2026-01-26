@@ -8,6 +8,7 @@ public record TrainingDTO(
         String training_name,
         String data,
         String status,
+        String email,
         List<Object> exercises
 ) {
 }

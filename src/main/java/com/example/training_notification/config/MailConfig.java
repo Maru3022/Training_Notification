@@ -1,5 +1,6 @@
 package com.example.training_notification.config;
 
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -10,5 +11,6 @@ import java.util.Properties;
 
 @Configuration
 @EnableAsync
+@EnableCaching
 public class MailConfig {
 }

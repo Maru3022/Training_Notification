@@ -23,7 +23,7 @@ public class TrainingListener {
     public void listen(TrainingDTO trainingDTO) {
         log.info("Received new message from Kafka topic [training-events]:{}", trainingDTO);
         try {
-            notificationService.sendTrainingNotification(trainingDTO);
+            notificationService.processAndSendNotification(trainingDTO);
             log.info("Successfully processed training event for user: {}", trainingDTO.userId());
         } catch (Exception e) {
             log.error("Error processing Kafka message for user {}:{}", trainingDTO.userId(), e.getMessage());

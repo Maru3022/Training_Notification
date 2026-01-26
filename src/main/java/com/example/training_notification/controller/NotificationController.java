@@ -23,7 +23,7 @@ public class NotificationController {
             @RequestBody TrainingDTO trainingDTO
     ) {
         log.info("Manual notification request received for user: {}", trainingDTO.userId());
-        notificationService.sendTrainingNotification(trainingDTO);
+        notificationService.processAndSendNotification(trainingDTO);
         return ResponseEntity.ok("Notification processed successfully");
     }
 }
