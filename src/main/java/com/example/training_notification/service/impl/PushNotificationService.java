@@ -27,7 +27,7 @@ public class PushNotificationService {
         log.debug("Preparing to send notification for user ID: {}", training.userId());
 
         NotificationLog logEntry = new NotificationLog();
-        logEntry.setUserId(String.valueOf(training.userId()));
+        logEntry.setUserId(training.userId());
         logEntry.setMessage(message);
         logEntry.setSentAt(LocalDateTime.now());
         notificationLogRepository.save(logEntry);

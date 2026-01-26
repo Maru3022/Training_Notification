@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "notification_logs")
@@ -18,10 +19,10 @@ public class NotificationLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id")
-    private String userId;
+    @Column(name = "user_id", columnDefinition = "uuid")
+    private UUID userId;
 
-    @Column(name = "message")
+    @Column(name = "message", length = 1000)
     private String message;
 
     @Column(name = "sent_at")
