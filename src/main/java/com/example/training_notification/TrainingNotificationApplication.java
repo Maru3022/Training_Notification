@@ -5,11 +5,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableAsync;
 
-//ToDo: Нагрузочные тесты
 //ToDo: Юпитер тесты
 //ToDo: Интеграционные тесты
-//ToDo: Посмотреть как будет взаимодействовать Kafka
-//ToDo: стоит ли создавать отдельный главный микросервис для взаимодействия микросервисов других, стоит их сначала написать или главный и потом от них идти
+//ToDo: создать README
+//ToDo: разобрать весь проект подробно,чтобы потом смог переписать самостоятельно
+//ToDo: UserLookUpService
+//ToDo: NotificationService
+//ToDo: NotificationController
+//ToDo: EmailNotificationService
 
 @SpringBootApplication
 @Cacheable
