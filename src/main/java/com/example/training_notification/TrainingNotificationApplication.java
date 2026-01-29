@@ -5,14 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableAsync;
 
-//ToDo: Юпитер тесты
-//ToDo: Интеграционные тесты
-//ToDo: создать README
 //ToDo: разобрать весь проект подробно,чтобы потом смог переписать самостоятельно
-//ToDo: UserLookUpService
-//ToDo: NotificationService
-//ToDo: NotificationController
-//ToDo: EmailNotificationService
 
 @SpringBootApplication
 @Cacheable

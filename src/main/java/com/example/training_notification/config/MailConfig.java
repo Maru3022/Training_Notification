@@ -13,4 +13,5 @@ import java.util.Properties;
 @EnableAsync
 @EnableCaching
 public class MailConfig {
+
 }
