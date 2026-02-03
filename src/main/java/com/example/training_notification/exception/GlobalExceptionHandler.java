@@ -1,4 +1,4 @@
-package com.example.training_notification.Exception;
+package com.example.training_notification.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
