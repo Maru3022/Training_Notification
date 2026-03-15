@@ -19,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 public class NotificationController {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+
     @PostMapping("/test-send")
     public ResponseEntity<String> testNotification(
             @RequestBody TrainingDTO trainingDTO

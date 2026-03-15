@@ -41,7 +41,15 @@ public class NotificationServiceTest {
         System.out.println("Starting complex process: Mapping user and saving notification log");
 
         UUID userId = UUID.randomUUID();
-        TrainingDTO training =  new TrainingDTO(userId,"Crossfit", "2024-05-20","COMPLETED", null,null);
+        TrainingDTO training = new TrainingDTO(
+                userId,
+                "@test_user",
+                "Crossfit",
+                "2024-05-20",
+                "COMPLETED",
+                null,
+                null
+        );
 
         when(userLookupService.getEmailByUserId(userId))
                 .thenReturn("user@fitness.com");

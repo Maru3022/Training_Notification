@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record TrainingDTO(
         UUID userId,
+        String telegramTag,
         String training_name,
         String data,
         String status,
