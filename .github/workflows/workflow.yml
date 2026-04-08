@@ -23,12 +23,14 @@ jobs:
           dockerfile: dockerfile
 
       - name: Dependency Check (SCA)
-        uses: owasp/dependency-check-action@master
+        uses: dependency-check/Dependency-Check_Action@main
         with:
           project: 'NotificationService'
           path: '.'
           format: 'HTML'
           args: '--failOnCVSS 7'
+        env:
+          JAVA_HOME: /opt/jdk17
 
   # 2. Тестирование и сборка
   build-and-test:
