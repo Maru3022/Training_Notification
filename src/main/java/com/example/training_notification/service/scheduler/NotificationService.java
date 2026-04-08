@@ -1,4 +1,4 @@
-package com.example.training_notification.service.schedular;
+package com.example.training_notification.service.scheduler;
 
 import com.example.training_notification.dto.NotificationRequest;
 import com.example.training_notification.dto.NotificationType;
@@ -9,11 +9,15 @@ import com.example.training_notification.service.impl.UserLookupService;
 import com.example.training_notification.service.interfaces.NotificationSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+/**
+ * Service for processing training notifications.
+ * This is called by TrainingListener and InteractionListener which handle Kafka messages.
+ * Note: The @KafkaListener annotation was removed to avoid duplicate processing.
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -23,10 +27,8 @@ public class NotificationService {
     private final NotificationLogRepository notificationLogRepository;
     private final UserLookupService userLookupService;
 
-    @KafkaListener(topics = "training-events", groupId = "notification-clean-v5")
     public void processAndSendNotification(TrainingDTO training) {
         try {
-            // Вся тяжелая логика вынесена из HTTP потока сюда
             String recipientEmail = userLookupService.getEmailByUserId(training.userId());
             String messageContent = "Workout '" + training.training_name() + "' status: " + training.status();
 
@@ -43,7 +45,7 @@ public class NotificationService {
             notificationLogRepository.save(dbLog);
 
         } catch (Exception e) {
-            log.error("Worker error: {}", e.getMessage());
+            log.error("Worker error: {}", e.getMessage(), e);
         }
     }
 }

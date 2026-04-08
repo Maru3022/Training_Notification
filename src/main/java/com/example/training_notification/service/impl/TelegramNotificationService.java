@@ -10,7 +10,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 public class TelegramNotificationService {
 
-    @Value("${telegram.bot.token:8428567160:AAEp5qnAv_6qP5LL0ge8IqyL4W4i_p75-xs}")
+    @Value("${telegram.bot.token}")
     private String botToken;
 
     private final RestTemplate restTemplate = new RestTemplate();
@@ -24,10 +24,9 @@ public class TelegramNotificationService {
 
         try{
             restTemplate.getForObject(url,String.class);
-            System.out.println("[SUCCESS] Telegram notification sent to: " + target);
+            log.info("[SUCCESS] Telegram notification sent to: {}", target);
         }catch (Exception e){
-            System.err.println("[ERROR] Failed to send Telegram: " + e.getMessage());
-            log.error("Telegram error: ", e);
+            log.error("[ERROR] Failed to send Telegram notification to {}: {}", target, e.getMessage());
         }
     }
 }

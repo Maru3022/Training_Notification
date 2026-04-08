@@ -4,6 +4,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 @Configuration
+@Slf4j
 public class FirebaseConfig {
 
     @PostConstruct
@@ -25,11 +27,11 @@ public class FirebaseConfig {
 
             if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseApp.initializeApp(options);
-                System.out.println(">>> Firebase has been successfully initialized");
+                log.info("Firebase has been successfully initialized");
             }
 
         } catch (IOException e) {
-            System.err.println("Firebase init error" + e.getMessage());
+            log.error("Firebase initialization failed: {}", e.getMessage());
         }
     }
 }

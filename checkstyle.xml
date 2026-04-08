@@ -10,7 +10,7 @@
         <module name="RedundantImport"/>
 
         <!-- Naming -->
-        <module name="PackageNameFormat"/>
+        <module name="PackageName"/>
         <module name="TypeName"/>
         <module name="MethodName"/>
         <module name="ParameterName"/>

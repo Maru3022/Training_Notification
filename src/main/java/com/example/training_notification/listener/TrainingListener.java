@@ -3,7 +3,7 @@ package com.example.training_notification.listener;
 import com.example.training_notification.dto.TrainingDTO;
 import com.example.training_notification.service.impl.PushNotificationService;
 import com.example.training_notification.service.impl.TelegramNotificationService;
-import com.example.training_notification.service.schedular.NotificationService;
+import com.example.training_notification.service.scheduler.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,8 +23,7 @@ public class TrainingListener {
             groupId = "notification-clean-group"
     )
     public void listen(TrainingDTO trainingDTO) {
-        System.out.println("---------------------------------------------------------");
-        log.info("[KAFKA] Received new message from topic [training-events]: {}", trainingDTO);
+        log.info("Received new message from topic [training-events]: {}", trainingDTO);
 
         try {
             notificationService.processAndSendNotification(trainingDTO);
@@ -42,14 +41,13 @@ public class TrainingListener {
                         trainingDTO.status()
                 );
 
-           telegramService.sendTelegramMessage(destination, messageText);
-            }else{
-                log.warn("[WARNING] Skipping Telegram delivery: userId is null");
+                telegramService.sendTelegramMessage(destination, messageText);
+            } else {
+                log.warn("Skipping Telegram delivery: telegramTag is null or empty for user {}", trainingDTO.userId());
             }
         } catch (Exception e) {
-            log.error("[ERROR] Critical failure while processing Kafka message: {}", e.getMessage());
+            log.error("Critical failure while processing Kafka message: {}", e.getMessage(), e);
         }
-        System.out.println("---------------------------------------------------------");
     }
 
 }

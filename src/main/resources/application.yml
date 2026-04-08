@@ -1,7 +1,5 @@
-spring:
-  application:
-    name: NUTRITION-SERVICE
-
+# Note: Main application configuration is in application.properties
+# This file contains Eureka-specific settings that override properties when needed
 eureka:
   client:
     register-with-eureka: true

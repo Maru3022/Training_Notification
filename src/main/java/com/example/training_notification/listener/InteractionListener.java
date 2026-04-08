@@ -1,7 +1,7 @@
 package com.example.training_notification.listener;
 
 import com.example.training_notification.dto.TrainingDTO;
-import com.example.training_notification.service.schedular.NotificationService;
+import com.example.training_notification.service.scheduler.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

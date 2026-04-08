@@ -31,3 +31,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Stakpak session files
+.stakpak/session*
+.stakpak/data/
+
+# Sensitive files
+serviceAccountKey.json
+*.env
+.env*

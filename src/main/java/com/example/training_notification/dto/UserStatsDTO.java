@@ -1,18 +1,19 @@
 package com.example.training_notification.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 public record UserStatsDTO(
-        Long userId,
+        UUID userId,
         String userName,
         String email,
 
-        int totalTrainings, //Всего тренировок за определенный период
-        int completedTrainings, //Завершенных тренировок
-        long totalMinutes, //Общее время в минутах
-        double caloriesBurned, //Сожженные калории
+        int totalTrainings, // Total workouts for the period
+        int completedTrainings, // Completed workouts
+        long totalMinutes, // Total time in minutes
+        double caloriesBurned, // Burned calories
 
-        String progressMessage, //Текст прогресса(напр. "Вы выполнили на 20% больше, чем на прошлой неделе")
-        List<String> achievemets //Список достижений за неделю
+        String progressMessage, // Progress text (e.g., "You completed 20% more than last week")
+        List<String> achievements // List of achievements for the week
 ) {
 }

@@ -1,4 +1,4 @@
-package com.example.training_notification.service.schedular;
+package com.example.training_notification.service.scheduler;
 
 import com.example.training_notification.dto.NotificationRequest;
 import com.example.training_notification.dto.NotificationType;
@@ -14,7 +14,7 @@ import java.util.List;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class WeeklyReportSchedular {
+public class WeeklyReportScheduler {
 
     private final NotificationSender emailNotificationService;
 
@@ -30,7 +30,7 @@ public class WeeklyReportSchedular {
                             "Your weekly report is ready:\n" +
                             "- Trainings this week: %d\n" +
                             "- Active time: %d min.\n" +
-                            "- Calories burned: %1f kcal.\n\n" +
+                            "- Calories burned: %.2f kcal.\n\n" +
                             "Your status: %s\n\n" +
                             "Keep up the good work!",
                     stats.userName(),
@@ -55,7 +55,7 @@ public class WeeklyReportSchedular {
     private List<UserStatsDTO> collectStatistics() {
         return List.of(
                 new UserStatsDTO(
-                        1L,
+                        java.util.UUID.randomUUID(),
                         "User",
                         "gravitya46@gmail.com",
                         5,

@@ -4,7 +4,18 @@
       "Bash(\"c:\\program files\\git\\cmd\\git.exe\" *)",
       "Bash(cmd *)",
       "Bash(- *)",
-      "Bash(mail *)"
+      "Bash(mail *)",
+      "Bash(mkdir *)",
+      "Bash(del *)",
+      "Bash(rmdir *)",
+      "Bash(mvnw *)",
+      "Bash(mvn *)",
+      "Bash(\"c:\\program files\\git\\bin\\git.exe\" *)",
+      "Bash(\\\"c:\\program *)",
+      "Bash(dir *)",
+      "Bash(set *)",
+      "Bash(%path%)",
+      "Bash(git add *)"
     ]
   },
   "$version": 3

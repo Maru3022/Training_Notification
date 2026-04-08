@@ -1,12 +1,16 @@
 package com.example.training_notification.service.impl;
 
+import com.example.training_notification.dto.NotificationRequest;
+import com.example.training_notification.dto.NotificationType;
 import com.example.training_notification.dto.TrainingDTO;
 import com.example.training_notification.entity.NotificationLog;
 import com.example.training_notification.repository.NotificationLogRepository;
+import com.example.training_notification.service.interfaces.NotificationSender;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.Notification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,14 +18,11 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PushNotificationService {
+public class PushNotificationService implements NotificationSender {
 
     private final NotificationLogRepository notificationLogRepository;
-    private final JavaMailSender mailSender;
 
-    public void sendTrainingsNotification(
-            TrainingDTO training
-    ) {
+    public void sendTrainingsNotification(TrainingDTO training) {
         String message = String.format("New workout plan assigned: %s scheduled for %s", training.training_name(), training.data());
 
         log.debug("Preparing to send notification for user ID: {}", training.userId());
@@ -32,16 +33,38 @@ public class PushNotificationService {
         logEntry.setSentAt(LocalDateTime.now());
         notificationLogRepository.save(logEntry);
         log.info("Notification log saved to database for user ID: {}", training.userId());
+    }
+
+    @Override
+    public void send(NotificationRequest request) {
+        log.info("Preparing to send push notification to {}", request.recipient());
 
         try {
-            SimpleMailMessage mail = new SimpleMailMessage();
-            mail.setTo("gravitya46@gmail.com");
-            mail.setSubject("New Training Session Notification");
-            mail.setText(message);
-            mailSender.send(mail);
-            log.info("Email notification successfully sent to: {}", mail.getTo()[0]);
+            Notification notification = Notification.builder()
+                    .setTitle("Workout notification")
+                    .setBody(request.message())
+                    .build();
+
+            Message message = Message.builder()
+                    .setNotification(notification)
+                    .setTopic(request.recipient())
+                    .build();
+
+            String response = FirebaseMessaging.getInstance().send(message);
+            log.info("Push notification sent successfully: {}", response);
+
+            NotificationLog logEntry = new NotificationLog();
+            logEntry.setUserId(null);
+            logEntry.setMessage(request.message());
+            logEntry.setSentAt(LocalDateTime.now());
+            notificationLogRepository.save(logEntry);
         } catch (Exception e) {
-            log.error("Failed to sent email notification: {}", e.getMessage());
+            log.error("Failed to send push notification to {}: {}", request.recipient(), e.getMessage());
         }
+    }
+
+    @Override
+    public boolean supports(NotificationType type) {
+        return type == NotificationType.PUSH;
     }
 }
