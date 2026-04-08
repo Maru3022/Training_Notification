@@ -1,4 +1,4 @@
-name: Java CI/CD Pipeline
+name: DevSecOps Ultimate Pipeline
 
 on:
   push:
@@ -6,8 +6,33 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
-  build:
+  # 1. Анализ кода и безопасность зависимостей
+  code-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: dockerfile
+
+      - name: Dependency Check (SCA)
+        uses: owasp/dependency-check-action@master
+        with:
+          project: 'NotificationService'
+          path: '.'
+          format: 'HTML'
+          args: '--failOnCVSS 7'
+
+  # 2. Тестирование и сборка
+  build-and-test:
+    needs: code-security
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -16,30 +41,13 @@ jobs:
           POSTGRES_DB: notification_db
           POSTGRES_USER: myuser
           POSTGRES_PASSWORD: secret
-        # Для тестов внутри GitHub Actions используем стандартный 5432
-        ports:
-          - 5432:5432
+        ports: [5432:5432]
       redis:
         image: redis:7
-        ports:
-          - 6379:6379
-      # Добавляем Kafka, иначе тесты упадут
-      zookeeper:
-        image: confluentinc/cp-zookeeper:7.4.0
-        env:
-          ZOOKEEPER_CLIENT_PORT: 2181
-      kafka:
-        image: confluentinc/cp-kafka:7.4.0
-        ports:
-          - 9092:9092
-        env:
-          KAFKA_ZOOKEEPER_CONNECT: localhost:2181
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        ports: [6379:6379]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -48,34 +56,82 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build and Test with Maven
-        run: mvn clean package
+      - name: Checkstyle Control
+        run: mvn checkstyle:check
+
+      - name: Run Tests with Coverage
+        run: mvn clean verify
         env:
-          # Переопределяем URL БД для тестов (в GitHub Actions всё на 5432)
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/notification_db
           SPRING_MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
 
-      - name: Upload Build Artifact
+      - name: Mutation Testing (PITest)
+        run: mvn org.pitest:pitest-maven:mutationCoverage
+        # Это найдет тесты, которые ничего не тестируют
+
+      - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
-          name: notification-service-jar
+          name: app-jar
           path: target/*.jar
 
-  docker:
-    needs: build
+  # 3. Безопасность контейнера
+  container-security:
+    needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download Artifact
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: notification-service-jar
+          name: app-jar
           path: target/
 
-      # Собираем образ. Если в Dockerfile есть стадия сборки (AS build),
-      # она выполнится снова. Для скорости лучше иметь простой Dockerfile без компиляции.
-      - name: Build Docker Image
-        run: docker build -t training-notification:latest .
+      - name: Build Local Image
+        run: docker build -t temp-image:latest .
+
+      - name: Scan Image with Trivy (Vulnerabilities)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'temp-image:latest'
+          format: 'table'
+          exit-code: '1' # Упасть, если найдены критические уязвимости
+          severity: 'CRITICAL,HIGH'
+
+  # 4. Публикация и Деплой
+  publish-and-deploy:
+    needs: container-security
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target/
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /app/notification
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker-compose up -d

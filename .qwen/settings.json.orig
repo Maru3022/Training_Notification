@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"c:\\program files\\git\\cmd\\git.exe\" *)"
+    ]
+  }
+}

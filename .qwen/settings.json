@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"c:\\program files\\git\\cmd\\git.exe\" *)",
+      "Bash(cmd *)",
+      "Bash(- *)",
+      "Bash(mail *)"
+    ]
+  },
+  "$version": 3
+}

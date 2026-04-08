@@ -1,20 +1,12 @@
-# Этап 1: Сборка
-FROM maven:3.8.4-openjdk-17-slim AS build
-WORKDIR /app
-COPY pom.xml .
-RUN mvn dependency:go-offline
-
-COPY src ./src
-RUN mvn clean package -DskipTests
-
-# Этап 2: Запуск
-# Используем проверенный образ Amazon Corretto (на базе Alpine для легкости)
+# Сборка уже прошла в CI, берем готовый артефакт
 FROM amazoncorretto:17-alpine
+
+# Создаем пользователя, чтобы не запускать от root (безопасность!)
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
+
 WORKDIR /app
+COPY target/*.jar app.jar
 
-# Проверка наличия jar файла (поможет при отладке в логах CI/CD)
-COPY --from=build /app/target/*.jar app.jar
-
-EXPOSE 8086
-
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Ограничиваем память Java, чтобы контейнер не убил систему (OOM Killer)
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
