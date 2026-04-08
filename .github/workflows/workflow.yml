@@ -63,6 +63,7 @@ jobs:
         run: mvn clean verify
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/notification_db
+          SPRING_DATA_REDIS_PORT: 6379
           SPRING_MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
 
       - name: Mutation Testing (PITest)
