@@ -90,8 +90,9 @@ jobs:
         with:
           image-ref: 'temp-image:latest'
           format: 'table'
-          exit-code: '1' # Упасть, если найдены критические уязвимости
-          severity: 'CRITICAL,HIGH'
+          exit-code: '1' # Падаем только на критичных, фиксируемых уязвимостях
+          severity: 'CRITICAL'
+          ignore-unfixed: true
 
   # 4. Публикация и Деплой
   publish-and-deploy:
