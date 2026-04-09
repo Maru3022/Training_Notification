@@ -120,7 +120,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Trivy filesystem scan (gate on CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.24.0
         with:
           scan-type: fs
           scan-ref: .
@@ -131,7 +131,7 @@ jobs:
           exit-code: "1"
 
       - name: Trivy filesystem scan (SARIF)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.24.0
         with:
           scan-type: fs
           scan-ref: .
@@ -168,7 +168,7 @@ jobs:
         run: docker build -f dockerfile -t local/training-notification:${{ github.sha }} .
 
       - name: Trivy image scan (gate on CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.24.0
         with:
           image-ref: local/training-notification:${{ github.sha }}
           severity: CRITICAL
@@ -177,7 +177,7 @@ jobs:
           exit-code: "1"
 
       - name: Trivy image scan (SARIF)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.24.0
         with:
           image-ref: local/training-notification:${{ github.sha }}
           severity: CRITICAL,HIGH
