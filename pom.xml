@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.5</version>
+        <version>3.4.11</version>
         <relativePath/>
     </parent>
     <groupId>com.example</groupId>
@@ -16,7 +16,9 @@
     <properties>
         <java.version>17</java.version>
         <pitest.version>1.15.0</pitest.version>
-        <netty.version>4.1.118.Final</netty.version>
+        <netty.version>4.1.132.Final</netty.version>
+        <lz4.version>1.8.1</lz4.version>
+        <tomcat.version>10.1.52</tomcat.version>
     </properties>
 
     <dependencies>
@@ -72,9 +74,25 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.lz4</groupId>
+            <artifactId>lz4-java</artifactId>
+            <version>${lz4.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.google.firebase</groupId>
             <artifactId>firebase-admin</artifactId>
             <version>9.4.3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.grpc</groupId>
+                    <artifactId>grpc-netty-shaded</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>1.75.0</version>
         </dependency>
     </dependencies>
 
