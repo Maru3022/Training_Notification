@@ -56,6 +56,6 @@ public class UserLookupServiceTest {
         RuntimeException exception = assertThrows(RuntimeException.class, () -> userLookupService.getEmailByUserId(userId));
 
         System.out.println("Exception caught: " + exception.getMessage());
-        assertEquals("User not found", exception.getMessage());
+        assertEquals("User not found with ID: " + userId, exception.getMessage());
     }
 }
