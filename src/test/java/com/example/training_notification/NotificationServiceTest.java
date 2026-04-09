@@ -6,7 +6,7 @@ import com.example.training_notification.entity.NotificationLog;
 import com.example.training_notification.repository.NotificationLogRepository;
 import com.example.training_notification.service.impl.UserLookupService;
 import com.example.training_notification.service.interfaces.NotificationSender;
-import com.example.training_notification.service.schedular.NotificationService;
+import com.example.training_notification.service.scheduler.NotificationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

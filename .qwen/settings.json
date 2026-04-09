@@ -17,7 +17,11 @@
       "Bash(%path%)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(.\\mvnw.cmd *)",
+      "Bash(java *)",
+      "Bash(where.exe *)",
+      "Bash(c:\\progra~1\\git\\bin\\git.exe *)"
     ]
   },
   "$version": 3
