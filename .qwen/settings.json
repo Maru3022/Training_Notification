@@ -21,7 +21,8 @@
       "Bash(.\\mvnw.cmd *)",
       "Bash(java *)",
       "Bash(where.exe *)",
-      "Bash(c:\\progra~1\\git\\bin\\git.exe *)"
+      "Bash(c:\\progra~1\\git\\bin\\git.exe *)",
+      "Bash(mvnw.cmd *)"
     ]
   },
   "$version": 3
