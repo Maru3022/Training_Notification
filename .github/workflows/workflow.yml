@@ -108,6 +108,10 @@ jobs:
           name: app-jar
           path: target/
 
+      - name: Normalize image name
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+        shell: bash
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -120,7 +124,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:latest
 
       - name: SSH Deploy
         uses: appleboy/ssh-action@v1.0.3
@@ -130,5 +134,5 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /app/notification
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:latest
             docker-compose up -d
