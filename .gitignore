@@ -36,6 +36,9 @@ build/
 .stakpak/session*
 .stakpak/data/
 
+# Editor / local tooling
+.qwen/
+
 # Sensitive files
 serviceAccountKey.json
 *.env

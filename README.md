@@ -1,70 +1,54 @@
-🏋️‍♂️ Training Notification Service
-Сервис уведомлений для фитнес-платформы. Отвечает за информирование пользователей о статусах тренировок, обработку событий в реальном времени через Kafka и рассылку еженедельных отчетов.
+# Training Notification Service
 
-🚀 Основные фичи
-Event-Driven архитектура: Слушает Kafka-топики (training-events, training-topic) для мгновенной реакции на действия пользователя.
+Микросервис уведомлений для фитнес-платформы: события из Kafka, email (Thymeleaf), опционально Telegram и Firebase Push, кэш email пользователей, еженедельные отчёты по расписанию.
 
-Гибридная рассылка:
+## Документация по методам
 
-Real-time: Мгновенные уведомления о статусе конкретной тренировки.
+**Полный справочник по каждому классу и методу:** [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md) — REST, слушатели Kafka, сервисы, фабрика, обработчик ошибок, конфигурация, DTO и тесты.
 
-Scheduled Reports: Автоматическая рассылка статистики (калории, время, достижения) каждое воскресенье в 20:00.
+## Возможности
 
-Умное кэширование: Оптимизация нагрузки на БД с помощью @Cacheable при поиске email-адресов пользователей.
+- **Kafka:** топики `training-events` и `training-topic` — см. `TrainingListener`, `InteractionListener`.
+- **Email:** `EmailNotificationService` + шаблон `templates/training-notification.html`.
+- **Telegram:** `TelegramNotificationService` (включается свойством `telegram.enabled`).
+- **Push:** `PushNotificationService` при `firebase.enabled=true` и наличии `serviceAccountKey.json`.
+- **Кэш:** Redis + `@Cacheable` для email по `userId` (`UserLookupService`).
+- **Расписание:** еженедельная рассылка — `WeeklyReportScheduler` (cron воскресенье 20:00).
 
-Асинхронная обработка: Использование ThreadPoolTaskExecutor (до 200 потоков) для отправки писем, чтобы не блокировать основные процессы.
+## Быстрый старт
 
-Шаблонизация: Генерация красивых HTML-писем с помощью Thymeleaf.
+1. PostgreSQL, Redis, Kafka — см. `compose.yaml` и `application.properties`.
+2. Переменные: пароль почты, при необходимости URL БД и Redis.
+3. Запуск: `./mvnw spring-boot-run` (или `mvnw.cmd` на Windows).
 
-Логирование уведомлений: Сохранение истории всех отправленных сообщений в PostgreSQL для аудита.
+## Тестовый HTTP endpoint
 
-🛠 Технологический стек
-Java 17+ / Spring Boot 3
+| Метод | Путь | Описание |
+|--------|------|----------|
+| POST | `/api/v1/notifications/test-send` | Публикует `TrainingDTO` в топик `training-events` (202 Accepted). |
 
-Spring Data JPA: Работа с БД (PostgreSQL).
+Пример тела запроса (`TrainingDTO`):
 
-Spring Kafka: Потребление событий из очередей.
-
-Spring Mail + Thymeleaf: Формирование и отправка писем.
-
-Firebase Admin SDK: Поддержка Push-уведомлений.
-
-Lombok: Сокращение шаблонного кода.
-
-Caffeine/Redis: (через Spring Cache) для кэширования профилей.
-
-🏗 Архитектура
-Проект построен на принципах слабой связности:
-
-Listeners: Принимают данные из Kafka и передают в сервис.
-
-Factory Pattern: NotificationFactory выбирает нужный способ отправки (Email, Push, SMS) на основе типа уведомления.
-
-Schedulers: Запускают регламентные задачи по Cron-выражениям.
-
-⚙️ Настройка (Configuration)
-Основные Cron задачи:
-Weekly Report: 0 0 20 * * SUN (Каждое воскресенье в 20:00).
-
-Настройки Task Executor:
-Core Pool Size: 50
-
-Max Pool Size: 200
-
-Queue Capacity: 2000
-
-Переменные окружения (application.properties):
-Properties
-spring.mail.host=smtp.gmail.com
-spring.mail.port=587
-spring.mail.username=${MAIL_USER}
-spring.mail.password=${MAIL_PASS}
-spring.kafka.bootstrap-servers=localhost:9092
-
-📝 API Endpoints (для тестов)МетодПутьОписаниеPOST/api/v1/notifications/test-sendЭмуляция отправки события в Kafka для проверки работы всей цепочки.Пример тела запроса (TrainingDTO):JSON{
-"userId": "550e8400-e29b-41d4-a716-446655440000",
-"training_name": "Morning Yoga",
-"data": "2023-10-25",
-"status": "COMPLETED",
-"email": "user@example.com"
+```json
+{
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "telegramTag": "@user",
+  "training_name": "Morning Yoga",
+  "data": "2023-10-25",
+  "status": "COMPLETED",
+  "email": "user@example.com",
+  "exercises": []
 }
+```
+
+## Стек
+
+Java 17, Spring Boot 3, Spring Kafka, Spring Data JPA, PostgreSQL, Redis, Mail, Thymeleaf, Firebase Admin (опционально).
+
+## Сборка и качество
+
+```bash
+./mvnw verify
+```
+
+Checkstyle настроен в `pom.xml` (`checkstyle.xml`).
