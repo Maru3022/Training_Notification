@@ -1,2 +1,0 @@
-# Ignore zlib vulnerability in Alpine base image (managed by Alpine maintainers)
-CVE-2026-22184
