@@ -18,7 +18,7 @@
         <pitest.version>1.15.0</pitest.version>
         <netty.version>4.1.132.Final</netty.version>
         <lz4.version>1.10.1</lz4.version>
-        <tomcat.version>10.1.52</tomcat.version>
+        <tomcat.version>10.1.53</tomcat.version>
         <spring-framework.version>6.2.11</spring-framework.version>
     </properties>
 
