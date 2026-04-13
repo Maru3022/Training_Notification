@@ -49,7 +49,6 @@ A microservice notification system for a fitness platform that handles training 
 - **Spring Boot Test** - Spring testing utilities
 
 ### Infrastructure
-- **Docker & Docker Compose** - Containerized services (PostgreSQL, Redis, Kafka, Zookeeper)
 - **Eureka Client** - Service discovery (optional)
 
 ## 🏗️ Architecture
@@ -137,21 +136,8 @@ com.example.training_notification
 
 - Java 17 or higher
 - Maven 3.6+
-- Docker & Docker Compose (for infrastructure services)
 
-### 1. Start Infrastructure
-
-```bash
-docker-compose up -d
-```
-
-This starts:
-- **PostgreSQL** on port `5433` (DB: `notification_db`, user: `myuser`, password: `secret`)
-- **Redis** on port `6380`
-- **Kafka** on port `9093`
-- **Zookeeper** on port `2181`
-
-### 2. Configure Application
+### 1. Configure Application
 
 Edit `src/main/resources/application.properties` to set:
 - Database connection (default: `localhost:5433`)
@@ -161,7 +147,7 @@ Edit `src/main/resources/application.properties` to set:
 - Telegram bot token (if enabled)
 - Firebase configuration (if enabled)
 
-### 3. Build and Run
+### 2. Build and Run
 
 ```bash
 # Build the project
@@ -266,17 +252,6 @@ The following files are **excluded from version control**:
 - Build artifacts (`target/`, `.mvn/`)
 
 **Never commit sensitive credentials!**
-
-## 🐳 Docker Services
-
-All infrastructure services are defined in `compose.yaml`:
-
-```yaml
-postgres:15      → Port 5433:5432
-redis:7          → Port 6380:6379
-cp-zookeeper     → Port 2181
-cp-kafka:7.4.0   → Port 9093:9093
-```
 
 ## 📊 Database Schema
 
