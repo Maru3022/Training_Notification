@@ -5,6 +5,7 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnResource;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -14,6 +15,7 @@ import java.io.InputStream;
 
 @Configuration
 @Slf4j
+@ConditionalOnProperty(name = "firebase.enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnResource(resources = "classpath:serviceAccountKey.json")
 public class FirebaseConfig {
 

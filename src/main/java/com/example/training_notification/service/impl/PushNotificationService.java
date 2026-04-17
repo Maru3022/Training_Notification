@@ -20,7 +20,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(name = "firebase.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "firebase.enabled", havingValue = "true", matchIfMissing = true)
 public class PushNotificationService implements NotificationSender {
 
     private final NotificationLogRepository notificationLogRepository;
