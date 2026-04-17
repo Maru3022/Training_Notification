@@ -9,7 +9,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 @Slf4j
-@ConditionalOnProperty(name = "telegram.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "telegram.enabled", havingValue = "true", matchIfMissing = false)
 public class TelegramNotificationService {
 
     @Value("${telegram.bot.token}")

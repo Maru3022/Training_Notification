@@ -10,8 +10,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.concurrent.CompletableFuture;
-
 @RestController
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
@@ -24,9 +22,15 @@ public class NotificationController {
     public ResponseEntity<String> testNotification(
             @RequestBody TrainingDTO trainingDTO
     ) {
-        CompletableFuture.runAsync(() -> {
-            kafkaTemplate.send("training-events", trainingDTO);
-        });
+        kafkaTemplate.send("training-events", trainingDTO)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Kafka send failed for user {}: {}", trainingDTO.userId(), ex.getMessage(), ex);
+                    } else {
+                        log.info("Kafka message sent to topic training-events, offset={}",
+                                result.getRecordMetadata().offset());
+                    }
+                });
         return ResponseEntity.accepted().build();
     }
 }

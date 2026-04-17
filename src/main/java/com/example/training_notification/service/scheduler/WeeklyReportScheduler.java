@@ -3,7 +3,7 @@ package com.example.training_notification.service.scheduler;
 import com.example.training_notification.dto.NotificationRequest;
 import com.example.training_notification.dto.NotificationType;
 import com.example.training_notification.dto.UserStatsDTO;
-import com.example.training_notification.service.interfaces.NotificationSender;
+import com.example.training_notification.factory.NotificationFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WeeklyReportScheduler {
 
-    private final NotificationSender emailNotificationService;
+    private final NotificationFactory notificationFactory;
 
     @Scheduled(cron = "0 0 20 * * SUN")
     public void sendWeeklyReports() {
@@ -46,7 +46,7 @@ public class WeeklyReportScheduler {
                     NotificationType.EMAIL
             );
 
-            emailNotificationService.send(request);
+            notificationFactory.getSender(NotificationType.EMAIL).send(request);
         }
 
         log.info(">>> Distribution finished. Reports sent successfully: {}", reports.size());

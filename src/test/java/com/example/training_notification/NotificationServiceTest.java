@@ -2,7 +2,9 @@ package com.example.training_notification;
 
 
 import com.example.training_notification.dto.TrainingDTO;
+import com.example.training_notification.dto.NotificationType;
 import com.example.training_notification.entity.NotificationLog;
+import com.example.training_notification.factory.NotificationFactory;
 import com.example.training_notification.repository.NotificationLogRepository;
 import com.example.training_notification.service.impl.UserLookupService;
 import com.example.training_notification.service.interfaces.NotificationSender;
@@ -30,6 +32,9 @@ public class NotificationServiceTest {
     private NotificationSender emailNotificationService;
 
     @Mock
+    private NotificationFactory notificationFactory;
+
+    @Mock
     private NotificationLogRepository notificationLogRepository;
 
     @InjectMocks
@@ -53,6 +58,8 @@ public class NotificationServiceTest {
 
         when(userLookupService.getEmailByUserId(userId))
                 .thenReturn("user@fitness.com");
+        when(notificationFactory.getSender(NotificationType.EMAIL))
+                .thenReturn(emailNotificationService);
 
         notificationService.processAndSendNotification(training);
 

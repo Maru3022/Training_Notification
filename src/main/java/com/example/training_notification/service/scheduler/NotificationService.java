@@ -4,11 +4,10 @@ import com.example.training_notification.dto.NotificationRequest;
 import com.example.training_notification.dto.NotificationType;
 import com.example.training_notification.dto.TrainingDTO;
 import com.example.training_notification.entity.NotificationLog;
+import com.example.training_notification.factory.NotificationFactory;
 import com.example.training_notification.repository.NotificationLogRepository;
 import com.example.training_notification.service.impl.UserLookupService;
-import com.example.training_notification.service.interfaces.NotificationSender;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,33 +18,27 @@ import java.time.LocalDateTime;
  * Note: The @KafkaListener annotation was removed to avoid duplicate processing.
  */
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class NotificationService {
 
-    private final NotificationSender emailNotificationService;
+    private final NotificationFactory notificationFactory;
     private final NotificationLogRepository notificationLogRepository;
     private final UserLookupService userLookupService;
 
     public void processAndSendNotification(TrainingDTO training) {
-        try {
-            String recipientEmail = userLookupService.getEmailByUserId(training.userId());
-            String messageContent = "Workout '" + training.training_name() + "' status: " + training.status();
+        String recipientEmail = userLookupService.getEmailByUserId(training.userId());
+        String messageContent = "Workout '" + training.training_name() + "' status: " + training.status();
 
-            NotificationRequest request = new NotificationRequest(
-                    recipientEmail, messageContent, NotificationType.EMAIL
-            );
+        NotificationRequest request = new NotificationRequest(
+                recipientEmail, messageContent, NotificationType.EMAIL
+        );
 
-            emailNotificationService.send(request);
+        notificationFactory.getSender(NotificationType.EMAIL).send(request);
 
-            NotificationLog dbLog = new NotificationLog();
-            dbLog.setUserId(training.userId());
-            dbLog.setMessage(messageContent);
-            dbLog.setSentAt(LocalDateTime.now());
-            notificationLogRepository.save(dbLog);
-
-        } catch (Exception e) {
-            log.error("Worker error: {}", e.getMessage(), e);
-        }
+        NotificationLog dbLog = new NotificationLog();
+        dbLog.setUserId(training.userId());
+        dbLog.setMessage(messageContent);
+        dbLog.setSentAt(LocalDateTime.now());
+        notificationLogRepository.save(dbLog);
     }
 }

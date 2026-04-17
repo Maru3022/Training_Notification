@@ -15,6 +15,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -55,11 +56,16 @@ public class PushNotificationService implements NotificationSender {
             String response = FirebaseMessaging.getInstance().send(message);
             log.info("Push notification sent successfully: {}", response);
 
-            NotificationLog logEntry = new NotificationLog();
-            logEntry.setUserId(null);
-            logEntry.setMessage(request.message());
-            logEntry.setSentAt(LocalDateTime.now());
-            notificationLogRepository.save(logEntry);
+            UUID userId = tryParseUuid(request.recipient());
+            if (userId != null) {
+                NotificationLog logEntry = new NotificationLog();
+                logEntry.setUserId(userId);
+                logEntry.setMessage(request.message());
+                logEntry.setSentAt(LocalDateTime.now());
+                notificationLogRepository.save(logEntry);
+            } else {
+                log.warn("Skipping notification_log insert for PUSH: recipient '{}' is not UUID", request.recipient());
+            }
         } catch (Exception e) {
             log.error("Failed to send push notification to {}: {}", request.recipient(), e.getMessage());
         }
@@ -68,5 +74,16 @@ public class PushNotificationService implements NotificationSender {
     @Override
     public boolean supports(NotificationType type) {
         return type == NotificationType.PUSH;
+    }
+
+    private UUID tryParseUuid(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 }
