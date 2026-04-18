@@ -19,7 +19,7 @@ public class NotificationController {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @PostMapping("/test-send")
-    public ResponseEntity<String> testNotification(
+    public ResponseEntity<Void> testNotification(
             @RequestBody TrainingDTO trainingDTO
     ) {
         kafkaTemplate.send("training-events", trainingDTO)

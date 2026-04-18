@@ -1,10 +1,1 @@
-# Note: Main application configuration is in application.properties
-# This file contains Eureka-specific settings that override properties when needed
-eureka:
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: ${EUREKA_SERVER_URL:http://eureka-server:8761/eureka/}
-  instance:
-    prefer-ip-address: true
+# Optional YAML overrides; primary configuration is application.properties.

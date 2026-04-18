@@ -15,7 +15,7 @@ public class InteractionListener {
 
     @KafkaListener(
             topics = "training-topic",
-            groupId = "notification-clean-v4")
+            groupId = "notification-clean-v5")
     public void listen(
             TrainingDTO trainingData
     ){

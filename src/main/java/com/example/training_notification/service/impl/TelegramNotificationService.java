@@ -19,15 +19,16 @@ public class TelegramNotificationService {
 
     public void sendTelegramMessage(String target, String text){
         String url = UriComponentsBuilder
-                .fromHttpUrl("https://api.telegram.org/bot" + botToken + "/sendMessage")
+                .fromUriString("https://api.telegram.org/bot" + botToken + "/sendMessage")
                 .queryParam("chat_id", target)
                 .queryParam("text", text)
+                .build()
                 .toUriString();
 
-        try{
-            restTemplate.getForObject(url,String.class);
+        try {
+            restTemplate.getForObject(url, String.class);
             log.info("[SUCCESS] Telegram notification sent to: {}", target);
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("[ERROR] Failed to send Telegram notification to {}: {}", target, e.getMessage());
         }
     }
