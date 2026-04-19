@@ -1,8 +1,7 @@
 package com.example.training_notification;
 
-
-import com.example.training_notification.dto.TrainingDTO;
 import com.example.training_notification.dto.NotificationType;
+import com.example.training_notification.dto.TrainingDTO;
 import com.example.training_notification.entity.NotificationLog;
 import com.example.training_notification.factory.NotificationFactory;
 import com.example.training_notification.repository.NotificationLogRepository;
@@ -20,13 +19,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class NotificationServiceTest {
+class NotificationServiceTest {
 
     @Mock
-    private UserLookupService userLookupService ;
+    private UserLookupService userLookupService;
 
     @Mock
     private NotificationSender emailNotificationService;
@@ -41,10 +43,8 @@ public class NotificationServiceTest {
     private NotificationService notificationService;
 
     @Test
-    @DisplayName("Should process training event and save log to database")
+    @DisplayName("Should process a training event and persist a notification log")
     void processAndSendNotification() {
-        System.out.println("Starting complex process: Mapping user and saving notification log");
-
         UUID userId = UUID.randomUUID();
         TrainingDTO training = new TrainingDTO(
                 userId,
@@ -56,25 +56,18 @@ public class NotificationServiceTest {
                 null
         );
 
-        when(userLookupService.getEmailByUserId(userId))
-                .thenReturn("user@fitness.com");
-        when(notificationFactory.getSender(NotificationType.EMAIL))
-                .thenReturn(emailNotificationService);
+        when(userLookupService.getEmailByUserId(userId)).thenReturn("user@fitness.com");
+        when(notificationFactory.getSender(NotificationType.EMAIL)).thenReturn(emailNotificationService);
 
         notificationService.processAndSendNotification(training);
 
-        System.out.println("Verifying service interactions...");
-        verify(emailNotificationService,times(1)).send(any());
+        verify(emailNotificationService, times(1)).send(any());
 
         ArgumentCaptor<NotificationLog> logCaptor = ArgumentCaptor.forClass(NotificationLog.class);
         verify(notificationLogRepository).save(logCaptor.capture());
 
         NotificationLog savedLog = logCaptor.getValue();
-        System.out.println("Log saved with message: "  + savedLog.getMessage());
-
         assertEquals(userId, savedLog.getUserId());
         assertEquals("Workout 'Crossfit' status: COMPLETED", savedLog.getMessage());
-
-
     }
 }

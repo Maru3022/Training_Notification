@@ -19,7 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class UserLookupServiceTest {
+class UserLookupServiceTest {
 
     @Mock
     private UserRepository userRepository;
@@ -28,10 +28,8 @@ public class UserLookupServiceTest {
     private UserLookupService userLookupService;
 
     @Test
-    @DisplayName("Should return user email when exists in database")
-    void getEmailByUser_Success() {
-        System.out.println("Running test: Should return email if user exists");
-
+    @DisplayName("Should return the user email when the user exists")
+    void getEmailByUserId_success() {
         UUID userId = UUID.randomUUID();
         User user = new User();
         user.setId(userId);
@@ -41,21 +39,21 @@ public class UserLookupServiceTest {
 
         String result = userLookupService.getEmailByUserId(userId);
 
-        System.out.println("Resulting email: " + result);
         assertEquals("pro_athlete@gmail.com", result);
         verify(userRepository).findById(userId);
     }
 
     @Test
-    @DisplayName("Should throw exception when user is not found in database")
-    void getEmailByUserId_NotFound() {
-        System.out.println("Running test: Should throw exception if user is missing");
+    @DisplayName("Should throw when the user does not exist")
+    void getEmailByUserId_notFound() {
         UUID userId = UUID.randomUUID();
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> userLookupService.getEmailByUserId(userId));
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> userLookupService.getEmailByUserId(userId)
+        );
 
-        System.out.println("Exception caught: " + exception.getMessage());
         assertEquals("User not found with ID: " + userId, exception.getMessage());
     }
 }

@@ -1,70 +1,69 @@
 # Training Notification Service
 
-A microservice notification system for a fitness platform that handles training events, sends notifications via multiple channels (Email, Telegram, Firebase Push), implements Redis caching for user data, and generates weekly scheduled reports.
+A microservice notification system for a fitness platform. It consumes training events from Kafka, sends notifications over several channels (email, optional Telegram and Firebase push), caches user lookups in Redis, and can send scheduled weekly email summaries.
 
-## 🚀 Features
+## Features
 
-- **Kafka Integration**: Consumes events from `training-events` and `training-topic` topics
-- **Multi-Channel Notifications**:
-  - 📧 Email with Thymeleaf HTML templates
-  - 📱 Telegram Bot API (optional)
-  - 🔥 Firebase Cloud Messaging Push (optional)
-- **Redis Caching**: User email lookup with `@Cacheable` annotations
-- **Scheduled Reports**: Weekly email reports every Sunday at 20:00
-- **Asynchronous Processing**: Thread pool executor for high-throughput notification sending
-- **Database Logging**: All notifications are logged to PostgreSQL for audit trails
-- **REST API**: Test endpoint for publishing training events to Kafka
+- **Kafka**: consumers for `training-events` and `training-topic`
+- **Notifications**:
+  - Email with Thymeleaf HTML templates
+  - Telegram Bot API (optional, feature flag)
+  - Firebase Cloud Messaging (optional, feature flag)
+- **Redis**: `@Cacheable` user email lookup
+- **Scheduling**: weekly email job (Sundays at 20:00 server time)
+- **Async mail**: dedicated thread pool for `@Async` email sends
+- **Persistence**: notification audit rows in PostgreSQL
+- **REST**: test endpoint that publishes a training payload to Kafka
 
-## 📚 Technology Stack
+## Technology stack
 
 ### Backend
-- **Java 17** - Modern Java with records and pattern matching
-- **Spring Boot 3.4.6** - Latest Spring Boot framework
-- **Spring Data JPA** - Database persistence layer
-- **Spring Kafka** - Kafka consumer integration
-- **Spring Mail** - Email sending capabilities
-- **Spring Web** - REST API controllers
 
-### Data & Messaging
-- **PostgreSQL 15** - Primary relational database
-- **Redis 7** - In-memory caching layer
-- **Apache Kafka** - Event streaming platform (via Confluent)
+- **Java 17**
+- **Spring Boot 3.4.13** (see `pom.xml` for the exact parent version)
+- **Spring Data JPA**, **Spring Kafka**, **Spring Mail**, **Spring Web**
 
-### Notification Channels
-- **JavaMail Sender** - SMTP email delivery
-- **Thymeleaf** - HTML email template engine
-- **Telegram Bot API** - Telegram messaging integration
-- **Firebase Admin SDK 9.4.3** - Push notification service
+### Data and messaging
 
-### Build & Quality Tools
-- **Maven** - Dependency management and build tool
-- **Lombok 1.18.30** - Boilerplate reduction
-- **Checkstyle 10.12.5** - Code style enforcement
-- **Pitest** - Mutation testing for test quality
-- **TestContainers** - Integration testing with real infrastructure
+- **PostgreSQL 15** (typical deployment; JDBC URL is configurable)
+- **Redis 7** (cache; host and port are configurable)
+- **Apache Kafka** (bootstrap servers are configurable)
+
+### Notification channels
+
+- **JavaMail** (SMTP)
+- **Thymeleaf** (HTML email)
+- **Telegram Bot API** (optional)
+- **Firebase Admin SDK 9.8.0** (optional; version from `pom.xml`)
+
+### Build and quality
+
+- **Maven** (includes Maven Wrapper under `.mvn/`)
+- **Lombok**
+- **Checkstyle**
+- **Pitest** (optional mutation testing)
+- **Testcontainers** (declared for tests; current unit tests use mocks)
 
 ### Testing
-- **JUnit 5** - Unit and integration tests
-- **Mockito** - Mocking framework
-- **Spring Boot Test** - Spring testing utilities
 
-### Infrastructure
-- **Eureka Client** - Service discovery (optional)
+- **JUnit 5**, **Mockito**, **spring-boot-starter-test**
 
-## 🏗️ Architecture
+> This module does **not** register with Eureka or other Spring Cloud discovery clients. Any legacy Eureka keys in older configs are ignored at runtime.
 
-### System Components
+## Architecture
+
+### Components
 
 ```
 ┌─────────────────┐
-│ REST Controller │ ── Publishes to Kafka
+│ REST Controller │ ── publishes to Kafka
 └────────┬────────┘
          │
          ▼
 ┌─────────────────────────────────────┐
-│        Kafka Topics                 │
-│  - training-events                  │
-│  - training-topic                   │
+│ Kafka topics                         │
+│  - training-events                   │
+│  - training-topic                    │
 └────────┬────────────────────────────┘
          │
     ┌────┴────┐
@@ -85,93 +84,76 @@ A microservice notification system for a fitness platform that handles training 
     ▼         ▼         ▼
 ┌───────┐ ┌────────┐ ┌──────────┐
 │ Email │ │Telegram│ │  Push    │
-│ Sender│ │ Sender │ │ Sender   │
+│       │ │(side   │ │(factory) │
+│       │ │ path)  │ │          │
 └───────┘ └────────┘ └──────────┘
 ```
 
-### Package Structure
+Telegram delivery for training events is invoked from `TrainingListener` when `telegram.enabled=true` and a bot token is configured. It is **not** wired through `NotificationFactory` as a `NotificationSender`.
+
+### Package layout
 
 ```
 com.example.training_notification
-├── config/                          # Configuration classes
-│   ├── AsyncConfig.java            # Thread pool executor (50-200 threads)
-│   ├── FirebaseConfig.java         # Firebase initialization
-│   └── MailConfig.java             # Caching configuration
-├── controller/
-│   └── NotificationController.java # REST endpoints
-├── dto/
-│   ├── NotificationRequest.java    # Notification payload
-│   ├── NotificationType.java       # EMAIL, PUSH, SMS, TELEGRAM
-│   ├── TrainingDTO.java            # Training event data
-│   └── UserStatsDTO.java           # Weekly report statistics
-├── entity/
-│   ├── NotificationLog.java        # Audit log entity
-│   └── User.java                   # User entity
-├── exception/
-│   └── GlobalExceptionHandler.java # Centralized error handling
-├── factory/
-│   └── NotificationFactory.java    # Strategy pattern for senders
-├── listener/
-│   ├── InteractionListener.java    # Kafka: training-topic
-│   └── TrainingListener.java       # Kafka: training-events
-├── repository/
-│   ├── NotificationLogRepository.java
-│   └── UserRepository.java
+├── config/           # Async, mail/caching, optional Firebase
+├── controller/       # REST API
+├── dto/              # Records and enums (including NotificationType)
+├── entity/           # JPA entities
+├── exception/        # Global exception handler
+├── factory/          # Resolves NotificationSender by NotificationType
+├── listener/         # Kafka listeners
+├── repository/       # Spring Data repositories
 └── service/
-    ├── interfaces/
-    │   └── NotificationSender.java # Strategy interface
-    ├── impl/
-    │   ├── EmailNotificationService.java
-    │   ├── PushNotificationService.java
-    │   ├── TelegramNotificationService.java
-    │   └── UserLookupService.java  # Redis-cached user lookup
-    └── scheduler/
-        ├── NotificationService.java       # Core processing logic
-        └── WeeklyReportScheduler.java     # Cron-based reports
+    ├── interfaces/   # NotificationSender
+    ├── impl/         # Email, push, Telegram helper, user lookup
+    └── scheduler/    # Notification pipeline, weekly reports
 ```
 
-## 🚦 Quick Start
+## Quick start
 
 ### Prerequisites
 
-- Java 17 or higher
-- Maven 3.6+
+- JDK 17+
+- Maven 3.9+ (or use the included wrapper: `mvnw` / `mvnw.cmd`)
 
-### 1. Configure Application
+### Configure
 
-Edit `src/main/resources/application.properties` to set:
-- Database connection (default: `localhost:5433`)
-- Kafka bootstrap servers (default: `localhost:9093`)
-- Redis connection (default: `localhost:6380`)
-- Email credentials (Gmail SMTP)
-- Telegram bot token (if enabled)
-- Firebase configuration (if enabled)
+Edit `src/main/resources/application.properties` (or override with environment variables) for:
 
-### 2. Build and Run
+- JDBC URL and credentials (`SPRING_DATASOURCE_*`)
+- Kafka (`SPRING_KAFKA_BOOTSTRAP_SERVERS`)
+- Redis (`SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT`)
+- Mail (`SPRING_MAIL_PASSWORD`, and related SMTP fields)
+- Optional Telegram (`TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`)
+- Optional Firebase (`FIREBASE_ENABLED` and `classpath:serviceAccountKey.json` when enabled)
+
+### Build and run
 
 ```bash
-# Build the project
-./mvnw clean install
+# Windows PowerShell
+.\mvnw.cmd clean verify
 
-# Run tests
-./mvnw verify
+# Unix-like shells
+./mvnw clean verify
 
-# Start the application
-./mvnw spring-boot:run
+# Run the application
+.\mvnw.cmd spring-boot:run   # Windows
+./mvnw spring-boot:run       # macOS / Linux
 ```
 
-The server will start on **port 8086**.
+Default HTTP port: **8086** (`server.port`).
 
-## 📡 REST API
+## REST API
 
-### Test Notification Endpoint
+### Publish a test training event
 
 ```http
 POST /api/v1/notifications/test-send
 Content-Type: application/json
 ```
 
-**Request Body:**
+Example body:
+
 ```json
 {
   "userId": "550e8400-e29b-41d4-a716-446655440000",
@@ -184,108 +166,104 @@ Content-Type: application/json
 }
 ```
 
-**Response:** `202 Accepted` (asynchronous processing)
+Response: **202 Accepted** (Kafka send is asynchronous).
 
-### Error Responses
+### Typical HTTP errors
 
-| Status Code | Description |
-|-------------|-------------|
-| 400 | Bad Request - Invalid input |
-| 500 | Internal Server Error - Processing failure |
+| Status | Meaning |
+|--------|---------|
+| 400 | Invalid input (for example, bad JSON or validation failure where applicable) |
+| 500 | Unexpected server error |
 
-## ⚙️ Configuration
+## Configuration reference
 
-### Feature Toggles
+### Feature toggles (defaults from `application.properties`)
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `telegram.enabled` | `true` | Enable/disable Telegram notifications |
-| `firebase.enabled` | `false` | Enable/disable Firebase Push notifications |
+| `telegram.enabled` | `false` | Enables `TelegramNotificationService` and related wiring |
+| `firebase.enabled` | `false` | Enables Firebase configuration and push sender when a key file is present |
 
-### Kafka Topics
+### Kafka
 
-| Topic | Consumer Group | Purpose |
-|-------|----------------|---------|
-| `training-events` | `notification-clean-group` | Primary training event processing |
-| `training-topic` | `notification-clean-v4` | Alternative training topic |
+| Topic | Consumer `groupId` in code | Role |
+|-------|----------------------------|------|
+| `training-events` | `notification-clean-group` | Main training pipeline in `TrainingListener` |
+| `training-topic` | `notification-clean-v5` (aligned with default consumer group id property) | Secondary consumer in `InteractionListener` |
 
-### Scheduled Tasks
+### Cron
 
-| Task | Schedule | Description |
-|------|----------|-------------|
-| Weekly Report | `0 0 20 * * SUN` | Send weekly statistics every Sunday at 20:00 |
+| Job | Cron | Description |
+|-----|------|-------------|
+| Weekly report | `0 0 20 * * SUN` | Sends demo weekly emails (placeholder statistics until wired to real data) |
 
-### Thread Pool Configuration
+### Thread pool (`AsyncConfig`)
 
-| Parameter | Value |
-|-----------|-------|
-| Core Pool Size | 50 |
-| Maximum Pool Size | 200 |
-| Queue Capacity | 2000 |
-| Thread Name Prefix | `NotificationThread-` |
-| Rejection Policy | `CallerRunsPolicy` |
+| Setting | Value |
+|---------|-------|
+| Core / max pool size | 50 / 200 |
+| Queue capacity | 2000 |
+| Thread name prefix | `NotificationThread-` |
+| Rejection policy | `CallerRunsPolicy` |
 
-## 🧪 Testing
+## Testing
 
 ```bash
-# Run all tests
-./mvnw test
-
-# Run with code quality checks
-./mvnw verify
-
-# Run mutation testing
-./mvnw org.pitest:pitest-maven:mutationCoverage
+.\mvnw.cmd test
+.\mvnw.cmd verify
+.\mvnw.cmd org.pitest:pitest-maven:mutationCoverage
 ```
 
-## 📖 Documentation
+## Further reading
 
-- **[API Documentation](docs/API_DOCUMENTATION.md)** - Complete method reference with all endpoints, services, and internal APIs
-- **[Method Reference](docs/METHOD_REFERENCE.md)** - Detailed class-by-class method documentation
+- [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)
+- [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md)
 
-## 🔐 Security Notes
+## Security
 
-The following files are **excluded from version control**:
-- `serviceAccountKey.json` - Firebase credentials
-- `.env` files - Environment variables
-- IDE configuration files (`.idea/`, `.vscode/`)
-- Build artifacts (`target/`, `.mvn/`)
+Do **not** commit secrets:
 
-**Never commit sensitive credentials!**
+- `serviceAccountKey.json` (Firebase)
+- Files under `.env*` with production credentials
+- Personal IDE metadata if it contains tokens
 
-## 📊 Database Schema
+The `target/` directory is build output and should stay out of version control. The **Maven Wrapper** (`.mvn/` and `mvnw*`) is part of the project and is meant to be committed so builds are reproducible.
 
-### `users` Table
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `id` | UUID | Primary Key |
-| `email` | VARCHAR | NOT NULL |
+## Database (high level)
 
-### `notification_logs` Table
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `id` | BIGINT | Auto-increment PK |
-| `user_id` | UUID | NOT NULL |
-| `message` | VARCHAR(1000) | - |
-| `sent_at` | TIMESTAMP | - |
+### `users`
 
-## 🐛 Known Limitations
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | UUID | Primary key |
+| `email` | VARCHAR | Required for lookup |
 
-1. **Weekly Report Statistics**: Currently returns hardcoded demo data (not aggregated from database)
-2. **Duplicate Processing**: If the same event is published to both Kafka topics, it may trigger duplicate notifications
-3. **Push Notifications**: `sendTrainingsNotification()` only logs to DB; actual FCM sending requires proper device token setup
+### `notification_logs`
 
-## 📝 License
+| Column | Type | Notes |
+|--------|------|--------|
+| `id` | BIGINT | Surrogate key |
+| `user_id` | UUID | Required in schema |
+| `message` | VARCHAR(1000) | Audit text |
+| `sent_at` | TIMESTAMP | When the row was written |
 
-This project is proprietary software.
+## Known limitations
 
-## 👥 Contributing
+1. Weekly report data is still **placeholder** (not aggregated from the database).
+2. Publishing the **same** logical event to both Kafka topics can produce **duplicate** notifications.
+3. `PushNotificationService.sendTrainingsNotification` persists a log line; **FCM** delivery uses `send(NotificationRequest)` with a topic or token string as appropriate.
 
-1. Create a feature branch from `main`
-2. Write tests for new functionality
-3. Ensure `./mvnw verify` passes
-4. Submit a pull request
+## License
 
-## 📧 Contact
+Proprietary.
 
-For questions or support, contact the development team.
+## Contributing
+
+1. Branch from `main`.
+2. Add or extend tests for new behaviour.
+3. Ensure `mvnw verify` (and Checkstyle) pass.
+4. Open a pull request.
+
+## Contact
+
+Use your team’s usual support channel.

@@ -4,16 +4,16 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class TrainingNotificationApplicationTests {
 
     @Test
-    @DisplayName("Application main class should exist and be instantiable")
+    @DisplayName("Application class should be constructible")
     void contextLoads() {
         assertDoesNotThrow(() -> {
             TrainingNotificationApplication application = new TrainingNotificationApplication();
-            org.junit.jupiter.api.Assertions.assertNotNull(application);
+            assertNotNull(application);
         });
     }
-
 }
