@@ -122,22 +122,19 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Install Trivy
+      - name: Trivy filesystem scan
         shell: bash
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.61.0
-
-      - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@v0.35.0
-        with:
-          skip-setup-trivy: true
-          scan-type: fs
-          scan-ref: .
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          format: sarif
-          output: trivy-fs.sarif
-          exit-code: "0"
+          docker run --rm \
+            -v "${PWD}:/workdir" \
+            -w /workdir \
+            ghcr.io/aquasecurity/trivy:0.61.0 \
+            fs \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-fs.sarif \
+            .
 
       - name: Upload filesystem SARIF
         uses: github/codeql-action/upload-sarif@v3
@@ -253,21 +250,20 @@ jobs:
       - name: Build local image for scan
         run: docker build -f dockerfile -t local/training-notification:${{ github.sha }} .
 
-      - name: Install Trivy
+      - name: Trivy image scan
         shell: bash
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.61.0
-
-      - name: Trivy image scan
-        uses: aquasecurity/trivy-action@v0.35.0
-        with:
-          skip-setup-trivy: true
-          image-ref: local/training-notification:${{ github.sha }}
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          format: sarif
-          output: trivy-image.sarif
-          exit-code: "0"
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}:/workdir" \
+            -w /workdir \
+            ghcr.io/aquasecurity/trivy:0.61.0 \
+            image \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-image.sarif \
+            local/training-notification:${{ github.sha }}
 
       - name: Upload image SARIF
         uses: github/codeql-action/upload-sarif@v3
