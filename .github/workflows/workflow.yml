@@ -271,7 +271,11 @@ jobs:
       contents: read
       packages: read
     env:
-      K8S_NAMESPACE: ${{ secrets.K8S_NAMESPACE != '' && secrets.K8S_NAMESPACE || 'training-notification' }}
+      K8S_NAMESPACE: training-notification
+      KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+      SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+      SPRING_MAIL_PASSWORD: ${{ secrets.SPRING_MAIL_PASSWORD }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -286,25 +290,25 @@ jobs:
           version: v1.30.2
 
       - name: Configure kubeconfig
-        if: secrets.KUBE_CONFIG_DATA != ''
+        if: env.KUBE_CONFIG_DATA != ''
         shell: bash
         run: |
           mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > "$HOME/.kube/config"
+          echo "$KUBE_CONFIG_DATA" | base64 -d > "$HOME/.kube/config"
 
       - name: Create runtime secret
-        if: secrets.KUBE_CONFIG_DATA != ''
+        if: env.KUBE_CONFIG_DATA != ''
         shell: bash
         run: |
           kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
           kubectl -n "$K8S_NAMESPACE" create secret generic training-notification-secrets \
-            --from-literal=SPRING_DATASOURCE_PASSWORD='${{ secrets.SPRING_DATASOURCE_PASSWORD }}' \
-            --from-literal=SPRING_MAIL_PASSWORD='${{ secrets.SPRING_MAIL_PASSWORD }}' \
-            --from-literal=TELEGRAM_BOT_TOKEN='${{ secrets.TELEGRAM_BOT_TOKEN }}' \
+            --from-literal=SPRING_DATASOURCE_PASSWORD="$SPRING_DATASOURCE_PASSWORD" \
+            --from-literal=SPRING_MAIL_PASSWORD="$SPRING_MAIL_PASSWORD" \
+            --from-literal=TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Set image tag in overlay
-        if: secrets.KUBE_CONFIG_DATA != ''
+        if: env.KUBE_CONFIG_DATA != ''
         shell: bash
         run: |
           cd k8s/overlays/prod
@@ -313,9 +317,9 @@ jobs:
           sed -i "s#ghcr.io/maru3022/training_notification#${REGISTRY}/${IMAGE_NAME_LC}#g" kustomization.yaml
 
       - name: Deploy manifests
-        if: secrets.KUBE_CONFIG_DATA != ''
+        if: env.KUBE_CONFIG_DATA != ''
         run: kubectl apply -k k8s/overlays/prod
 
       - name: Wait for rollout
-        if: secrets.KUBE_CONFIG_DATA != ''
+        if: env.KUBE_CONFIG_DATA != ''
         run: kubectl -n "$K8S_NAMESPACE" rollout status deployment/training-notification --timeout=180s
