@@ -1,10 +1,10 @@
-name: Secure Multi-Stage CI/CD
+name: Kubernetes Delivery Pipeline
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   workflow_dispatch:
 
 concurrency:
@@ -13,10 +13,11 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
+  JAVA_VERSION: "17"
 
 jobs:
   quality-gate:
-    name: Quality Gate (lint + dependency sanity)
+    name: Quality Gate
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,11 +25,11 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: "17"
-          distribution: "temurin"
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
           cache: maven
 
       - name: Make Maven wrapper executable
@@ -39,14 +40,11 @@ jobs:
         with:
           dockerfile: dockerfile
 
-      - name: Resolve Maven dependencies
-        run: ./mvnw -B -ntp -DskipTests dependency:resolve
+      - name: Enforce toolchain and run Checkstyle
+        run: ./mvnw -B -ntp -DskipTests checkstyle:check validate
 
-      - name: Checkstyle
-        run: ./mvnw -B -ntp checkstyle:check
-
-  test-and-package:
-    name: Integration tests + package
+  test-and-coverage:
+    name: Tests And Coverage
     needs: quality-gate
     runs-on: ubuntu-latest
     permissions:
@@ -78,11 +76,11 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: "17"
-          distribution: "temurin"
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
           cache: maven
 
       - name: Make Maven wrapper executable
@@ -92,24 +90,29 @@ jobs:
         run: ./mvnw -B -ntp clean verify
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/notification_db
+          SPRING_DATASOURCE_USERNAME: myuser
+          SPRING_DATASOURCE_PASSWORD: secret
+          SPRING_DATA_REDIS_HOST: localhost
           SPRING_DATA_REDIS_PORT: 6379
+          SPRING_MAIL_USERNAME: ci@example.com
           SPRING_MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
 
-      - name: Prepare single JAR artifact
-        shell: bash
-        run: |
-          mkdir -p out
-          cp target/*-SNAPSHOT.jar out/app.jar
-
-      - name: Upload build artifact
+      - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
-          path: out/app.jar
+          path: target/*-SNAPSHOT.jar
           retention-days: 7
 
-  dependency-security:
-    name: Source dependency vulnerability scan
+      - name: Upload JaCoCo report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco
+          retention-days: 7
+
+  source-security:
+    name: Source Security
     needs: quality-gate
     runs-on: ubuntu-latest
     permissions:
@@ -119,37 +122,110 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Trivy filesystem scan (gate on CRITICAL)
-        uses: aquasecurity/trivy-action@v0.24.0
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: fs
           scan-ref: .
-          scanners: vuln
-          severity: CRITICAL
-          ignore-unfixed: true
-          format: table
-          exit-code: "1"
-
-      - name: Trivy filesystem scan (SARIF)
-        uses: aquasecurity/trivy-action@v0.24.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          scanners: vuln
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           format: sarif
           output: trivy-fs.sarif
           exit-code: "0"
 
-      - name: Upload filesystem scan to code scanning
+      - name: Upload filesystem SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-fs.sarif
 
+  kubernetes-validate:
+    name: Validate Kubernetes Manifests
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.30.2
+
+      - name: Install kubeconform
+        shell: bash
+        run: |
+          curl -sSL -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz kubeconform
+          sudo mv kubeconform /usr/local/bin/kubeconform
+
+      - name: Render production overlay
+        run: kubectl kustomize k8s/overlays/prod > rendered-k8s.yaml
+
+      - name: Validate rendered manifests
+        run: kubeconform -strict -summary rendered-k8s.yaml
+
+  build-image:
+    name: Build Container Image
+    needs: [test-and-coverage, kubernetes-validate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target
+
+      - name: Normalize image name
+        shell: bash
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}
+          tags: |
+            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Login to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and optionally push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
   container-security:
-    name: Container security scan
-    needs: test-and-package
+    name: Container Security
+    needs: build-image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -158,26 +234,21 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Download build artifact
+      - name: Download JAR
         uses: actions/download-artifact@v4
         with:
           name: app-jar
-          path: target/
+          path: target
 
-      - name: Build local image
+      - name: Normalize image name
+        shell: bash
+        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Build local image for scan
         run: docker build -f dockerfile -t local/training-notification:${{ github.sha }} .
 
-      - name: Trivy image scan (gate on CRITICAL)
-        uses: aquasecurity/trivy-action@v0.24.0
-        with:
-          image-ref: local/training-notification:${{ github.sha }}
-          severity: CRITICAL
-          ignore-unfixed: true
-          format: table
-          exit-code: "1"
-
-      - name: Trivy image scan (SARIF)
-        uses: aquasecurity/trivy-action@v0.24.0
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: local/training-notification:${{ github.sha }}
           severity: CRITICAL,HIGH
@@ -186,80 +257,65 @@ jobs:
           output: trivy-image.sarif
           exit-code: "0"
 
-      - name: Upload image scan to code scanning
+      - name: Upload image SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-image.sarif
 
-  publish-image:
-    name: Publish container image
-    needs: [test-and-package, dependency-security, container-security]
+  deploy-production:
+    name: Deploy To Kubernetes
+    needs: [source-security, build-image, container-security]
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     permissions:
       contents: read
-      packages: write
+      packages: read
+    env:
+      K8S_NAMESPACE: ${{ secrets.K8S_NAMESPACE != '' && secrets.K8S_NAMESPACE || 'training-notification' }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: app-jar
-          path: target/
-
       - name: Normalize image name
         shell: bash
         run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          version: v1.30.2
 
-      - name: Build and push image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ github.sha }}
-
-  deploy:
-    name: Deploy via SSH
-    needs: publish-image
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    permissions:
-      contents: read
-    env:
-      DEPLOY_HOST: ${{ secrets.SERVER_HOST }}
-      DEPLOY_USER: ${{ secrets.SERVER_USER }}
-      DEPLOY_KEY: ${{ secrets.SERVER_SSH_KEY }}
-    steps:
-      - name: Normalize image name
+      - name: Configure kubeconfig
+        if: secrets.KUBE_CONFIG_DATA != ''
         shell: bash
-        run: echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > "$HOME/.kube/config"
 
-      - name: Deploy to server
-        if: env.DEPLOY_HOST != '' && env.DEPLOY_USER != '' && env.DEPLOY_KEY != ''
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.DEPLOY_KEY }}
-          script: |
-            set -e
-            cd /app/notification
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ github.sha }}
-            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:latest
-            if docker compose version >/dev/null 2>&1; then
-              docker compose up -d
-            else
-              docker-compose up -d
-            fi
+      - name: Create runtime secret
+        if: secrets.KUBE_CONFIG_DATA != ''
+        shell: bash
+        run: |
+          kubectl create namespace "$K8S_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n "$K8S_NAMESPACE" create secret generic training-notification-secrets \
+            --from-literal=SPRING_DATASOURCE_PASSWORD='${{ secrets.SPRING_DATASOURCE_PASSWORD }}' \
+            --from-literal=SPRING_MAIL_PASSWORD='${{ secrets.SPRING_MAIL_PASSWORD }}' \
+            --from-literal=TELEGRAM_BOT_TOKEN='${{ secrets.TELEGRAM_BOT_TOKEN }}' \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Set image tag in overlay
+        if: secrets.KUBE_CONFIG_DATA != ''
+        shell: bash
+        run: |
+          cd k8s/overlays/prod
+          kubectl kustomize . >/dev/null
+          sed -i "s/newTag: latest/newTag: sha-${GITHUB_SHA}/" kustomization.yaml
+          sed -i "s#ghcr.io/maru3022/training_notification#${REGISTRY}/${IMAGE_NAME_LC}#g" kustomization.yaml
+
+      - name: Deploy manifests
+        if: secrets.KUBE_CONFIG_DATA != ''
+        run: kubectl apply -k k8s/overlays/prod
+
+      - name: Wait for rollout
+        if: secrets.KUBE_CONFIG_DATA != ''
+        run: kubectl -n "$K8S_NAMESPACE" rollout status deployment/training-notification --timeout=180s

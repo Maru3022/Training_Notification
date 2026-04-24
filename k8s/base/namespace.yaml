@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: training-notification
+  labels:
+    app.kubernetes.io/name: training-notification
+    app.kubernetes.io/part-of: training-platform

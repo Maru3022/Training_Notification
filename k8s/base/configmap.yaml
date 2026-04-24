@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-notification-config
+  labels:
+    app.kubernetes.io/name: training-notification
+data:
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql.database.svc.cluster.local:5432/notification_db
+  SPRING_DATASOURCE_USERNAME: myuser
+  SPRING_DATA_REDIS_HOST: redis-master.cache.svc.cluster.local
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka.kafka.svc.cluster.local:9092
+  SPRING_MAIL_HOST: smtp.gmail.com
+  SPRING_MAIL_PORT: "587"
+  SPRING_MAIL_USERNAME: notifications@example.com
+  TELEGRAM_ENABLED: "false"
+  FIREBASE_ENABLED: "false"
+  MANAGEMENT_SERVER_PORT: "8081"

@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: training-notification
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: training-notification
+          resources:
+            requests:
+              cpu: 300m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 1536Mi
