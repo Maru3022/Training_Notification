@@ -6,6 +6,7 @@ import com.example.training_notification.dto.UserStatsDTO;
 import com.example.training_notification.factory.NotificationFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,9 @@ import java.util.List;
 public class WeeklyReportScheduler {
 
     private final NotificationFactory notificationFactory;
+
+    @Value("${weekly.report.demo.email:demo@example.com}")
+    private String weeklyReportDemoEmail;
 
     @Scheduled(cron = "0 0 20 * * SUN")
     public void sendWeeklyReports() {
@@ -57,7 +61,7 @@ public class WeeklyReportScheduler {
                 new UserStatsDTO(
                         java.util.UUID.randomUUID(),
                         "User",
-                        "gravitya46@gmail.com",
+                        weeklyReportDemoEmail,
                         5,
                         4,
                         250L,

@@ -122,9 +122,16 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@v0.28.0
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.4
         with:
+          cache: true
+          version: v0.61.0
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          skip-setup-trivy: true
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
@@ -247,9 +254,16 @@ jobs:
       - name: Build local image for scan
         run: docker build -f dockerfile -t local/training-notification:${{ github.sha }} .
 
-      - name: Trivy image scan
-        uses: aquasecurity/trivy-action@v0.28.0
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.4
         with:
+          cache: true
+          version: v0.61.0
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          skip-setup-trivy: true
           image-ref: local/training-notification:${{ github.sha }}
           severity: CRITICAL,HIGH
           ignore-unfixed: true

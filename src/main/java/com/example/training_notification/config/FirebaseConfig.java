@@ -15,7 +15,7 @@ import java.io.InputStream;
 
 @Configuration
 @Slf4j
-@ConditionalOnProperty(name = "firebase.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "firebase.enabled", havingValue = "true", matchIfMissing = false)
 @ConditionalOnResource(resources = "classpath:serviceAccountKey.json")
 public class FirebaseConfig {
 
