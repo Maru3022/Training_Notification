@@ -30,8 +30,12 @@ public class EmailNotificationService implements NotificationSender {
     @Override
     @Async
     public void send(NotificationRequest request) {
+        sendSync(request);
+    }
+
+    public boolean sendSync(NotificationRequest request) {
         try {
-            log.info("Starting async email send to {}", request.recipient());
+            log.info("Sending email to {}", request.recipient());
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
@@ -41,7 +45,6 @@ public class EmailNotificationService implements NotificationSender {
             helper.setSubject("Workout notification");
 
             Context context = new Context();
-
             context.setVariable("trainingName", request.message());
             context.setVariable("trainingDate", LocalDateTime.now().toString());
             context.setVariable("trainingStatus", "RECEIVED");
@@ -51,9 +54,10 @@ public class EmailNotificationService implements NotificationSender {
             mailSender.send(mimeMessage);
 
             log.info(">>> SUCCESS: Email sent to {}", request.recipient());
+            return true;
         } catch (Exception e) {
-            log.error(">>> ERROR: Failed to send email to {}. Error: {}",
-                    request.recipient(), e.getMessage());
+            log.error(">>> ERROR: Failed to send email to {}. Error: {}", request.recipient(), e.getMessage());
+            return false;
         }
     }
 

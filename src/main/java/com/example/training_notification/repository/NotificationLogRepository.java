@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface NotificationLogRepository extends JpaRepository<NotificationLog, Long> {
+    boolean existsBySagaIdAndStep(String sagaId, String step);
 }

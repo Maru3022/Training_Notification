@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "notification_logs")
+@Table(name = "notification_logs",
+        uniqueConstraints = @UniqueConstraint(name = "uq_saga_step", columnNames = {"saga_id", "step"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,4 +28,10 @@ public class NotificationLog {
 
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
+
+    @Column(name = "saga_id")
+    private String sagaId;
+
+    @Column(name = "step")
+    private String step;
 }
