@@ -6,7 +6,6 @@ import com.example.training_notification.dto.NotificationResponseEvent;
 import com.example.training_notification.entity.NotificationLog;
 import com.example.training_notification.repository.NotificationLogRepository;
 import com.example.training_notification.service.impl.EmailNotificationService;
-import com.example.training_notification.service.interfaces.NotificationSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
