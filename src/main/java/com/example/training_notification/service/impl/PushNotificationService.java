@@ -30,12 +30,29 @@ public class PushNotificationService implements NotificationSender {
 
         log.debug("Preparing to send notification for user ID: {}", training.userId());
 
-        NotificationLog logEntry = new NotificationLog();
-        logEntry.setUserId(training.userId());
-        logEntry.setMessage(message);
-        logEntry.setSentAt(LocalDateTime.now());
-        notificationLogRepository.save(logEntry);
-        log.info("Notification log saved to database for user ID: {}", training.userId());
+        try {
+            Notification notification = Notification.builder()
+                    .setTitle("Workout notification")
+                    .setBody(message)
+                    .build();
+
+            Message firebaseMessage = Message.builder()
+                    .setNotification(notification)
+                    .setTopic(training.userId().toString())
+                    .build();
+
+            String response = FirebaseMessaging.getInstance().send(firebaseMessage);
+            log.info("Push notification sent successfully: {}", response);
+
+            NotificationLog logEntry = new NotificationLog();
+            logEntry.setUserId(training.userId());
+            logEntry.setMessage(message);
+            logEntry.setSentAt(LocalDateTime.now());
+            notificationLogRepository.save(logEntry);
+            log.info("Notification log saved to database for user ID: {}", training.userId());
+        } catch (Exception e) {
+            log.error("Failed to send push notification for user ID {}: {}", training.userId(), e.getMessage());
+        }
     }
 
     @Override

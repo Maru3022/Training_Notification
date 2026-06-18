@@ -46,8 +46,8 @@ public class EmailNotificationService implements NotificationSender {
 
             Context context = new Context();
             context.setVariable("trainingName", request.message());
-            context.setVariable("trainingDate", LocalDateTime.now().toString());
-            context.setVariable("trainingStatus", "RECEIVED");
+            context.setVariable("trainingDate", request.trainingDate() != null ? request.trainingDate().toString() : LocalDateTime.now().toString());
+            context.setVariable("trainingStatus", request.trainingStatus() != null ? request.trainingStatus() : "RECEIVED");
 
             String htmlContent = templateEngine.process("training-notification", context);
             helper.setText(htmlContent, true);

@@ -1,5 +1,8 @@
 package com.example.training_notification.service.impl;
 
+import com.example.training_notification.dto.NotificationRequest;
+import com.example.training_notification.dto.NotificationType;
+import com.example.training_notification.service.interfaces.NotificationSender;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -10,12 +13,17 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service
 @Slf4j
 @ConditionalOnProperty(name = "telegram.enabled", havingValue = "true", matchIfMissing = false)
-public class TelegramNotificationService {
+public class TelegramNotificationService implements NotificationSender {
 
     @Value("${telegram.bot.token}")
     private String botToken;
 
     private final RestTemplate restTemplate = new RestTemplate();
+
+    @Override
+    public void send(NotificationRequest request) {
+        sendTelegramMessage(request.recipient(), request.message());
+    }
 
     public void sendTelegramMessage(String target, String text){
         String url = UriComponentsBuilder
@@ -31,5 +39,10 @@ public class TelegramNotificationService {
         } catch (Exception e) {
             log.error("[ERROR] Failed to send Telegram notification to {}: {}", target, e.getMessage());
         }
+    }
+
+    @Override
+    public boolean supports(NotificationType type) {
+        return type == NotificationType.TELEGRAM;
     }
 }
