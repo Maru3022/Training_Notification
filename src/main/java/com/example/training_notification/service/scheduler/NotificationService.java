@@ -4,16 +4,16 @@ import com.example.training_notification.dto.NotificationRequest;
 import com.example.training_notification.dto.NotificationType;
 import com.example.training_notification.dto.TrainingDTO;
 import com.example.training_notification.entity.NotificationLog;
-import com.example.training_notification.factory.NotificationFactory;
 import com.example.training_notification.repository.NotificationLogRepository;
 import com.example.training_notification.service.impl.UserLookupService;
 import com.example.training_notification.service.interfaces.NotificationSender;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,14 +23,22 @@ import java.util.Optional;
  * Note: The @KafkaListener annotation was removed to avoid duplicate processing.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class NotificationService {
 
-    private final NotificationFactory notificationFactory;
     private final NotificationLogRepository notificationLogRepository;
     private final UserLookupService userLookupService;
     private final List<NotificationSender> availableSenders;
+
+    public NotificationService(
+            NotificationLogRepository notificationLogRepository,
+            UserLookupService userLookupService,
+            Optional<List<NotificationSender>> availableSenders
+    ) {
+        this.notificationLogRepository = notificationLogRepository;
+        this.userLookupService = userLookupService;
+        this.availableSenders = availableSenders.orElseGet(Collections::emptyList);
+    }
 
     public void processAndSendNotification(TrainingDTO training) {
         String messageContent = "Workout '" + training.training_name() + "' status: " + training.status();

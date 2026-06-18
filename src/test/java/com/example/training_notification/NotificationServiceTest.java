@@ -3,7 +3,6 @@ package com.example.training_notification;
 import com.example.training_notification.dto.NotificationType;
 import com.example.training_notification.dto.TrainingDTO;
 import com.example.training_notification.entity.NotificationLog;
-import com.example.training_notification.factory.NotificationFactory;
 import com.example.training_notification.repository.NotificationLogRepository;
 import com.example.training_notification.service.impl.UserLookupService;
 import com.example.training_notification.service.interfaces.NotificationSender;
@@ -12,10 +11,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,12 +33,8 @@ class NotificationServiceTest {
     private NotificationSender emailNotificationService;
 
     @Mock
-    private NotificationFactory notificationFactory;
-
-    @Mock
     private NotificationLogRepository notificationLogRepository;
 
-    @InjectMocks
     private NotificationService notificationService;
 
     @Test
@@ -57,7 +52,13 @@ class NotificationServiceTest {
         );
 
         when(userLookupService.getEmailByUserId(userId)).thenReturn("user@fitness.com");
-        when(notificationFactory.getSender(NotificationType.EMAIL)).thenReturn(emailNotificationService);
+        when(emailNotificationService.supports(NotificationType.EMAIL)).thenReturn(true);
+
+        notificationService = new NotificationService(
+                notificationLogRepository,
+                userLookupService,
+                java.util.Optional.of(Collections.singletonList(emailNotificationService))
+        );
 
         notificationService.processAndSendNotification(training);
 
