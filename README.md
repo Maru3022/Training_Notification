@@ -1,191 +1,145 @@
 # Training Notification Service
 
-Spring Boot microservice for fitness-platform notifications. The service consumes training events from Kafka, resolves recipients through PostgreSQL and Redis-backed lookups, and delivers notifications by email with optional Telegram and Firebase channels. The project is now prepared for Kubernetes-first delivery with production manifests and a stronger GitHub Actions pipeline.
+Сервис уведомлений распределённой fitness-платформы. Слушает события о тренировках и регистрации пользователей в Kafka, резолвит получателя через PostgreSQL/Redis и доставляет уведомления по email (Gmail SMTP), а также опционально через Telegram и Firebase Push. Один из шагов оркестрируемой Saga при создании пользователя — реализован через Saga-step + Transactional Outbox.
 
-## What changed
+![Java](https://img.shields.io/badge/Java-17-orange?logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.13-brightgreen?logo=springboot)
+![Kafka](https://img.shields.io/badge/Apache%20Kafka-spring--kafka%203.3.14-black?logo=apachekafka)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Hibernate%20JPA-336791?logo=postgresql)
+![Redis](https://img.shields.io/badge/Redis-cache-DC382D?logo=redis)
+![Docker](https://img.shields.io/badge/Docker-distroless-2496ED?logo=docker)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Kustomize-326CE5?logo=kubernetes)
 
-- Kubernetes deployment assets were added under `k8s/` with a production `kustomize` overlay.
-- The application now exposes actuator liveness/readiness probes on a dedicated management port.
-- CI/CD was upgraded from Docker-over-SSH delivery to a staged pipeline with manifest validation, security scans, SBOM generation, image publication and Kubernetes rollout.
+## Что делает сервис
 
-## Core capabilities
+- Принимает события `training-events` и `training-topic` из Kafka и рассылает уведомления о статусе тренировки сразу по нескольким каналам (email, Telegram, Firebase Push), в зависимости от того, какие каналы сконфигурированы и есть ли у пользователя нужные контакты.
+- Участвует в Saga создания пользователя как шаг `NOTIFICATION`: слушает команды `saga-notification-command` / `saga.notification.send`, отправляет приветственное письмо и публикует ответ оркестратору через Outbox, а не напрямую в Kafka.
+- Гарантирует идемпотентность обработки: проверяет `correlationId` / пару `sagaId+step` в `NotificationLog` перед повторной отправкой, чтобы повторная доставка Kafka-сообщения не привела к дублю письма.
+- Кэширует резолвинг email пользователя через Redis (`UserLookupService`) и поддерживает локальную копию пользователей через consumer `user.created`.
+- Содержит REST-эндпоинт для ручной публикации тестового события в Kafka и шедулер еженедельных отчётов (в текущем виде использует фиксированные демоданные, а не реальную агрегацию активности пользователя — это заглушка, а не полноценная аналитика).
 
-- Kafka consumers for `training-events` and `training-topic`
-- Email notifications rendered with Thymeleaf templates
-- Optional Telegram and Firebase delivery channels behind feature toggles
-- Redis-based lookup cache for recipient resolution
-- PostgreSQL persistence for notification audit logs
-- Scheduled weekly summary email job
-- REST endpoint for publishing test events into Kafka
-
-## Technology stack
-
-- Java 17
-- Spring Boot 3.4.13
-- Spring Data JPA, Spring Kafka, Spring Mail, Spring Web, Spring Actuator
-- PostgreSQL, Redis, Apache Kafka
-- Maven, Checkstyle, JaCoCo, Pitest, Testcontainers
-- Docker + GHCR
-- Kubernetes + Kustomize
-
-## Architecture
+## Архитектура
 
 ```text
-Client/API -> NotificationController -> Kafka topics
-Kafka topics -> TrainingListener / InteractionListener -> NotificationService
-NotificationService -> Email / Telegram / Firebase senders
-NotificationService -> PostgreSQL audit log
-UserLookupService -> Redis cache -> PostgreSQL users
-Kubernetes Ingress -> Service -> Deployment -> Pods with readiness/liveness probes
+                         +---------------------+
+                         |   Saga-Orchestrator  |
+                         +-----------+----------+
+                                     | saga-notification-command
+                                     | saga.notification.send / .compensate
+                                     v
++----------------+     training-events/      +----------------------------+
+|  Trains-Service |--- training-topic ------->|  Training Notification    |
++----------------+                            |  Service (8086)           |
+                                               |                            |
+                                               |  Listener -> Notification  |
+                                               |  Service -> Sender(s)      |
+                                               +----+-----------+----------+
+                                                    |           |
+                              UserLookupService     |           | NotificationLog
+                              (Redis cache) <--------+           +--> PostgreSQL
+                                     |
+                                     v
+                          Email (SMTP) / Telegram Bot API / Firebase Cloud Messaging
+                                     ^
+                                     | saga-notification-response (через Outbox)
+                                     |
+                         +-----------+----------+
+                         |   Saga-Orchestrator  |
+                         +----------------------+
 ```
 
-## Repository layout
+## Архитектурные решения
 
-```text
-.github/workflows/        GitHub Actions CI/CD pipeline
-docs/                     Additional operational documentation
-k8s/base/                 Reusable Kubernetes manifests
-k8s/overlays/prod/        Production overlay for Kubernetes
-src/main/java/            Application source code
-src/main/resources/       Runtime configuration and templates
-src/test/                 Tests
-dockerfile                Runtime container image
+### 1. Saga-шаг с Transactional Outbox вместо прямой публикации ответа
+
+`SagaNotificationCommandListener` обрабатывает команды от оркестратора (`EXECUTE` / `ROLLBACK`), отправляет письмо синхронно через `EmailNotificationService`, а ответ оркестратору (`saga-notification-response`) не публикует в Kafka напрямую внутри обработчика — он сохраняет `OutboxEvent` в той же транзакции, что и запись `NotificationLog`. Фоновый `OutboxProcessor` (`@Scheduled(fixedDelay = 3000)`) забирает события со статусом `PENDING` и публикует их в Kafka, переводя в `SENT`/`FAILED`. Это убирает классическую проблему dual-write (запись в БД прошла, а сообщение в Kafka потерялось из-за сетевого сбоя) — публикация события становится частью той же ACID-транзакции, что и бизнес-изменение.
+
+### 2. Идемпотентность на двух уровнях саги
+
+В репозитории одновременно есть два независимых пути обработки одной и той же предметной области:
+- `NotificationSagaConsumer` — реагирует на `saga.notification.send` / `saga.notification.compensate`, идемпотентность через `existsByCorrelationId`.
+- `SagaNotificationCommandListener` — реагирует на `saga-notification-command`, идемпотентность через `existsBySagaIdAndStep(sagaId, "NOTIFICATION")`.
+
+Оба пути пишут в одну таблицу `notification_logs`, оба перед отправкой письма проверяют, не обработана ли уже эта саг-транзакция, и при повторной доставке от Kafka (at-least-once delivery) просто подтверждают оффсет без повторной отправки письма.
+
+### 3. Dead Letter Topic и экспоненциальный backoff на уровне consumer factory
+
+В `NotificationKafkaConfig` для слушателей `saga.notification.send` и `saga.notification.compensate` настроен `DefaultErrorHandler` с `DeadLetterPublishingRecoverer` и `ExponentialBackOff(1000ms, x2)`: сообщение, вызвавшее необработанное исключение, повторяется с растущим интервалом, а если ошибка не исчезает — уходит в DLT-топик вместо бесконечного блокирования партиции. Дополнительно продюсер настроен на `acks=all` + `enable.idempotence=true` + `max.in.flight.requests=5`, что исключает дублирование сообщений со стороны самого продюсера при ретраях.
+
+## API-эндпоинты
+
+| Метод | Путь | Контроллер | Описание |
+|---|---|---|---|
+| POST | `/api/v1/notifications/test-send` | `NotificationController` | Публикует `TrainingDTO` в топик `training-events` для ручного тестирования цепочки уведомлений |
+
+> Сервис в основном управляется событиями Kafka, а не REST — собственный публичный API минимален.
+
+### Ключевые Kafka-топики
+
+| Топик | Направление | Слушатель/источник |
+|---|---|---|
+| `training-events`, `training-topic` | consume | `TrainingListener`, `InteractionListener` |
+| `user.created` | consume | `UserSyncListener` |
+| `saga.notification.send` | consume | `NotificationSagaConsumer` |
+| `saga.notification.compensate` | consume | `NotificationSagaConsumer` |
+| `saga-notification-command` | consume | `SagaNotificationCommandListener` |
+| `saga-notification-response` | produce (через Outbox) | `SagaNotificationCommandListener` → `OutboxProcessor` |
+
+## Технологический стек
+
+| Категория | Технологии |
+|---|---|
+| Язык / платформа | Java 17, Spring Boot 3.4.13 |
+| Данные | PostgreSQL (Spring Data JPA, Hikari), Redis (Spring Cache) |
+| Messaging | Apache Kafka 3.9.2, Spring Kafka 3.3.14, DLT + ExponentialBackOff |
+| Каналы доставки | Spring Mail (Gmail SMTP), Telegram Bot API (опционально), Firebase Admin SDK (опционально) |
+| Шаблонизация | Thymeleaf |
+| Тестирование | JUnit 5, Mockito, Testcontainers (PostgreSQL, Kafka) |
+| Качество кода | Checkstyle, JaCoCo, Pitest (мутационное тестирование) |
+| CI/CD | GitHub Actions: Checkstyle, Hadolint, тесты с Postgres/Redis-сервисами, Trivy (FS + image), SBOM/provenance, kubeconform, деплой в Kubernetes |
+| Контейнеризация | Docker (distroless `java17-debian12:nonroot`) |
+| Деплой | Kubernetes + Kustomize (`k8s/base`, `k8s/overlays/prod`), HPA, PDB, NetworkPolicy, readiness/liveness probes |
+
+## Локальный запуск
+
+### Зависимости
+
+JDK 17+, Maven Wrapper, PostgreSQL, Redis, Kafka.
+
+### Переменные окружения
+
+```bash
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/notification_db
+SPRING_DATASOURCE_USERNAME=myuser
+SPRING_DATASOURCE_PASSWORD=secret
+SPRING_KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+SPRING_DATA_REDIS_HOST=localhost
+SPRING_DATA_REDIS_PORT=6380
+SPRING_MAIL_USERNAME=
+SPRING_MAIL_PASSWORD=
+TELEGRAM_ENABLED=false
+TELEGRAM_BOT_TOKEN=
+FIREBASE_ENABLED=false
+MANAGEMENT_SERVER_PORT=8081
 ```
 
-## Local run
-
-### Prerequisites
-
-- JDK 17+
-- Maven 3.9+ or Maven Wrapper
-- PostgreSQL
-- Redis
-- Kafka
-
-### Important environment variables
-
-- `SPRING_DATASOURCE_URL`
-- `SPRING_DATASOURCE_USERNAME`
-- `SPRING_DATASOURCE_PASSWORD`
-- `SPRING_KAFKA_BOOTSTRAP_SERVERS`
-- `SPRING_DATA_REDIS_HOST`
-- `SPRING_DATA_REDIS_PORT`
-- `SPRING_MAIL_HOST`
-- `SPRING_MAIL_PORT`
-- `SPRING_MAIL_USERNAME`
-- `SPRING_MAIL_PASSWORD`
-- `TELEGRAM_ENABLED`
-- `TELEGRAM_BOT_TOKEN`
-- `FIREBASE_ENABLED`
-- `MANAGEMENT_SERVER_PORT`
-
-### Build and test
+### Сборка и тесты
 
 ```bash
 ./mvnw clean verify
 ```
 
-Windows PowerShell:
-
-```powershell
-.\mvnw.cmd clean verify
-```
-
-### Run locally
+### Запуск
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-Default ports:
+Сервис поднимется на `localhost:8086`, актуатор — на `localhost:8081` (`/actuator/health`, `/actuator/prometheus`).
 
-- Application: `8086`
-- Management / probes: `8081`
+## Связанные репозитории
 
-## Kubernetes deployment
-
-Production manifests live in `k8s/overlays/prod`.
-
-### Validate manifests
-
-```bash
-kubectl kustomize k8s/overlays/prod
-```
-
-### Deploy manually
-
-```bash
-kubectl apply -f k8s/secret.example.yaml
-kubectl apply -k k8s/overlays/prod
-kubectl -n training-notification rollout status deployment/training-notification
-```
-
-### Included Kubernetes resources
-
-- `Namespace`
-- `ServiceAccount`
-- `ConfigMap`
-- runtime `Secret` contract
-- `Deployment`
-- `Service`
-- `Ingress`
-- `HorizontalPodAutoscaler`
-- `PodDisruptionBudget`
-- `NetworkPolicy`
-
-## CI/CD
-
-GitHub Actions now performs:
-
-1. Dockerfile lint + Maven quality gate
-2. Full Maven test and package stage with JaCoCo artifact upload
-3. Source vulnerability scan with Trivy SARIF upload
-4. Kubernetes manifest rendering and schema validation
-5. Container build with Buildx cache, provenance and SBOM
-6. Container vulnerability scan
-7. Kubernetes deployment with secret reconciliation and rollout tracking
-
-### Required GitHub secrets
-
-- `MAIL_PASSWORD` for CI test bootstrap
-- `KUBE_CONFIG_DATA` for cluster access
-- `K8S_NAMESPACE` optional override
-- `SPRING_DATASOURCE_PASSWORD`
-- `SPRING_MAIL_PASSWORD`
-- `TELEGRAM_BOT_TOKEN` optional
-
-## REST API
-
-### Publish test event
-
-```http
-POST /api/v1/notifications/test-send
-Content-Type: application/json
-```
-
-Example payload:
-
-```json
-{
-  "userId": "550e8400-e29b-41d4-a716-446655440000",
-  "telegramTag": "@user",
-  "training_name": "Morning Yoga",
-  "data": "2026-04-24",
-  "status": "COMPLETED",
-  "email": "user@example.com",
-  "exercises": []
-}
-```
-
-## Operational notes
-
-- Readiness probe: `/actuator/health/readiness`
-- Liveness probe: `/actuator/health/liveness`
-- Rolling update strategy keeps service availability during deploys
-- Update ingress hostname and cluster service DNS names before production cutover
-
-## Further reading
-
-- [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)
-- [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md)
-- [docs/KUBERNETES_DEPLOYMENT.md](docs/KUBERNETES_DEPLOYMENT.md)
+- [Saga-Orchestrator](https://github.com/Maru3022/Saga-Orchestrator) — оркестратор саги создания пользователя, источник команд для этого сервиса
+- [Trains-Service](https://github.com/Maru3022/Trains-Service) — публикует события о тренировках в `training-events`/`training-topic`
+- [Training-Nutrition](https://github.com/Maru3022/Training-Nutrition) — сервис расчёта питания, соседний шаг той же платформы
+- [Eureka-server](https://github.com/Maru3022/Eureka-server) — service discovery для всей платформы
