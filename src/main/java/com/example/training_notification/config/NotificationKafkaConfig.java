@@ -2,6 +2,7 @@ package com.example.training_notification.config;
 
 import com.example.training_notification.dto.CompensationEvent;
 import com.example.training_notification.dto.NotificationCommandEvent;
+import com.example.training_notification.dto.TrainingDTO;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -80,6 +81,23 @@ public class NotificationKafkaConfig {
         factory.setConsumerFactory(consumerFactory);
         factory.getContainerProperties().setAckMode(org.springframework.kafka.listener.ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.setCommonErrorHandler(new DefaultErrorHandler(new DeadLetterPublishingRecoverer(new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(kafkaProperties.buildProducerProperties()))), new ExponentialBackOff(1000L, 2.0)));
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, TrainingDTO> trainingEventConsumerFactory(KafkaProperties kafkaProperties) {
+        Map<String, Object> props = new HashMap<>(kafkaProperties.buildConsumerProperties(null));
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(),
+                new JsonDeserializer<>(TrainingDTO.class, false));
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, TrainingDTO> trainingEventKafkaListenerContainerFactory(
+            ConsumerFactory<String, TrainingDTO> trainingEventConsumerFactory) {
+        ConcurrentKafkaListenerContainerFactory<String, TrainingDTO> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(trainingEventConsumerFactory);
         return factory;
     }
 }

@@ -35,7 +35,7 @@ public class EmailNotificationService implements NotificationSender {
 
     public boolean sendSync(NotificationRequest request) {
         try {
-            log.info("Sending email to {}", request.recipient());
+            log.debug("Sending email notification");
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
@@ -53,10 +53,10 @@ public class EmailNotificationService implements NotificationSender {
             helper.setText(htmlContent, true);
             mailSender.send(mimeMessage);
 
-            log.info(">>> SUCCESS: Email sent to {}", request.recipient());
+            log.info("Email notification sent");
             return true;
         } catch (Exception e) {
-            log.error(">>> ERROR: Failed to send email to {}. Error: {}", request.recipient(), e.getMessage());
+            log.error("Email notification failed: {}", e.getClass().getSimpleName());
             return false;
         }
     }

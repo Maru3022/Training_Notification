@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> {
 
-    @Query("SELECT o FROM OutboxEvent o WHERE o.status = :status ORDER BY o.createdAt ASC")
-    List<OutboxEvent> findByStatusOrderByCreatedAt(@Param("status") OutboxEvent.Status status);
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM OutboxEvent o WHERE o.status = :status ORDER BY o.createdAt ASC, o.id ASC")
+    List<OutboxEvent> findByStatusOrderByCreatedAt(@Param("status") OutboxEvent.Status status, org.springframework.data.domain.Pageable pageable);
 }

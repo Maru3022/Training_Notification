@@ -20,7 +20,8 @@ public class TrainingListener {
 
     @KafkaListener(
             topics = "training-events",
-            groupId = "notification-clean-group"
+            groupId = "notification-clean-group",
+            containerFactory = "trainingEventKafkaListenerContainerFactory"
     )
     public void listen(TrainingDTO trainingDTO) {
         log.info("Received new message from topic [training-events]: {}", trainingDTO);
