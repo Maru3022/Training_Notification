@@ -7,7 +7,6 @@ resources:
   - configmap.yaml
   - deployment.yaml
   - service.yaml
-  - ingress.yaml
   - hpa.yaml
   - pdb.yaml
   - networkpolicy.yaml
