@@ -18,6 +18,29 @@ jobs:
     name: CI
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: notification_db
+          POSTGRES_USER: myuser
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U myuser -d notification_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
@@ -29,6 +52,24 @@ jobs:
           cache: maven
       - name: Verify application
         run: mvn -B -ntp clean verify
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/notification_db
+          SPRING_DATASOURCE_USERNAME: myuser
+          SPRING_DATASOURCE_PASSWORD: secret
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+          SPRING_MAIL_USERNAME: ci@example.com
+          SPRING_MAIL_PASSWORD: ci-placeholder
+      - name: Install kubectl
+        shell: bash
+        run: |
+          version=v1.30.2
+          base="https://dl.k8s.io/release/${version}/bin/linux/amd64"
+          curl --fail --silent --show-error --location --output kubectl "${base}/kubectl"
+          curl --fail --silent --show-error --location --output kubectl.sha256 "${base}/kubectl.sha256"
+          echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+          chmod +x kubectl
+          echo "$PWD" >> "$GITHUB_PATH"
       - name: Install kubeconform
         shell: bash
         run: |
@@ -89,3 +130,4 @@ jobs:
           digest="$(printf '%s\n' "$push_output" | awk '/digest: sha256:/ {print $2}' | tail -1)"
           test -n "$digest"
           echo "image=${image}@${digest}" >> "$GITHUB_OUTPUT"
+
