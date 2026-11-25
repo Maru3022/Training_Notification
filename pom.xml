@@ -21,7 +21,7 @@
         <legacy.lz4.version>1.8.1</legacy.lz4.version>
         <kafka-clients.version>3.9.2</kafka-clients.version>
         <tomcat.version>10.1.54</tomcat.version>
-        <thymeleaf.version>3.1.4.RELEASE</thymeleaf.version>
+        <thymeleaf.version>3.1.5.RELEASE</thymeleaf.version>
     </properties>
 
     <dependencyManagement>
