@@ -17,7 +17,7 @@
         <java.version>17</java.version>
         <pitest.version>1.15.0</pitest.version>
         <netty.version>4.1.132.Final</netty.version>
-        <lz4.version>1.11.0</lz4.version>
+        <lz4.version>1.11.4</lz4.version>
         <legacy.lz4.version>1.8.1</legacy.lz4.version>
         <kafka-clients.version>3.9.2</kafka-clients.version>
         <tomcat.version>10.1.54</tomcat.version>
